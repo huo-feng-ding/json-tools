@@ -1,7 +1,8 @@
 import { Base64 } from "js-base64";
 
+// 支持 URL-safe Base64 (-, _) 和数组上下文 ([, ,:)
 export const BASE64_REGEX =
-  /: "(([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==))"/g;
+  /(?:[:,]\s*|\[)\s*"(([A-Za-z0-9+/\-_]{4})*([A-Za-z0-9+/\-_]{4}|[A-Za-z0-9+/\-_]{3}=|[A-Za-z0-9+/\-_]{2}==))"/g;
 
 /**
  * 标准化 Base64 字符串：去除空白、转换 URL 安全字符、补齐填充
@@ -53,25 +54,7 @@ export function validateAndDecodeBase64(input: string): {
  * @returns boolean 是否为有效的base64编码
  */
 export function checkBase64Strict(str: string): boolean {
-  try {
-    // 尝试将解码后的内容作为UTF-8字符串解析
-    const decoded = Base64.atob(str);
-
-    // 使用TextDecoder进行UTF-8解码验证
-    const decoder = new TextDecoder("utf-8", { fatal: true });
-    const uint8Array = new Uint8Array(decoded.length);
-
-    for (let i = 0; i < decoded.length; i++) {
-      uint8Array[i] = decoded.charCodeAt(i);
-    }
-
-    // 如果这里没有抛出异常，说明是有效的UTF-8序列
-    decoder.decode(uint8Array);
-
-    return true;
-  } catch (error) {
-    return false;
-  }
+  return decodeBase64Strict(str) !== "";
 }
 
 /**
