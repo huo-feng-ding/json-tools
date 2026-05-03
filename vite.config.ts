@@ -28,7 +28,7 @@ export default defineConfig({
     }),
     tsconfigPaths(),
     monacoEditorPlugin({
-      languageWorkers: ["editorWorkerService", "json", "typescript"],
+      languageWorkers: ["editorWorkerService", "json"],
     }),
     nodePolyfills(),
     VitePWA({
