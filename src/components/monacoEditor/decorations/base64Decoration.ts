@@ -2,6 +2,7 @@ import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
 
 import { DecorationManager, DEFAULT_MAX_LINE_LENGTH, type DecoratorState } from "./decorationManager.ts";
+import { buildHoverContents } from "./decorationInit.ts";
 
 import { BASE64_REGEX, decodeBase64Strict } from "@/utils/base64.ts";
 
@@ -41,10 +42,7 @@ export const registerBase64HoverProvider = () => {
 
           if (decoded) {
             return {
-              contents: [
-                { value: "**Base64 解码器**" },
-                { value: "```\n" + decoded + "\n```" },
-              ],
+              contents: buildHoverContents("**Base64 解码器**", decoded),
               range: new monaco.Range(
                 position.lineNumber,
                 valueStart + 1,

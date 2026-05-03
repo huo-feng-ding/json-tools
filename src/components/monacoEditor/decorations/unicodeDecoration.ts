@@ -2,6 +2,7 @@ import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
 
 import { DecorationManager, DEFAULT_MAX_LINE_LENGTH, type DecoratorState } from "./decorationManager.ts";
+import { buildHoverContents } from "./decorationInit.ts";
 
 import { decodeUnicode, UNICODE_STRING_REGEX } from "@/utils/unicode.ts";
 
@@ -67,7 +68,7 @@ export const registerUnicodeHoverProvider = () => {
 
       // 如果解码成功，返回悬停信息
       return {
-        contents: [{ value: "**Unicode 解码器**" }, { value: decoded }],
+        contents: buildHoverContents("**Unicode 解码器**", decoded),
         range: new monaco.Range(
           position.lineNumber,
           currentWordRange.startColumn,

@@ -2,6 +2,7 @@ import * as monaco from "monaco-editor";
 import { editor } from "monaco-editor";
 
 import { DecorationManager, DEFAULT_MAX_LINE_LENGTH, type DecoratorState } from "./decorationManager.ts";
+import { buildHoverContents } from "./decorationInit.ts";
 
 // URL编码正则表达式 - 匹配%xx形式的编码
 export const URL_REGEX = /%(?:[0-9a-fA-F]{2})+/g;
@@ -81,7 +82,7 @@ export const registerUrlHoverProvider = () => {
 
       // 如果解码成功，返回悬停信息
       return {
-        contents: [{ value: "**URL 解码器**" }, { value: decoded }],
+        contents: buildHoverContents("**URL 解码器**", decoded),
         range: new monaco.Range(
           position.lineNumber,
           currentWordRange.startColumn,

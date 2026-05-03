@@ -6,6 +6,42 @@ import { registerBase64HoverProvider } from "@/components/monacoEditor/decoratio
 import { registerUnicodeHoverProvider } from "@/components/monacoEditor/decorations/unicodeDecoration.ts";
 import { registerUrlHoverProvider } from "@/components/monacoEditor/decorations/urlDecoration.ts";
 
+// 悬停复制按钮使用的命令ID
+export const COPY_HOVER_COMMAND_ID = "editor.hover.copyDecodedText";
+
+let copyCommandRegistered = false;
+
+/**
+ * 注册悬停复制命令（全局一次性）
+ */
+const registerCopyCommand = () => {
+  if (copyCommandRegistered) return;
+
+  monaco.editor.registerCommand(COPY_HOVER_COMMAND_ID, (_accessor, text: string) => {
+    if (typeof text === "string" && text) {
+      navigator.clipboard.writeText(text);
+    }
+  });
+
+  copyCommandRegistered = true;
+};
+
+/**
+ * 构建带复制按钮的 hover 内容
+ */
+export const buildHoverContents = (title: string, decoded: string): monaco.IMarkdownString[] => {
+  const copyArgs = encodeURIComponent(JSON.stringify(decoded));
+
+  return [
+    { value: title },
+    { value: "```\n" + decoded + "\n```" },
+    {
+      value: `[复制](${`command:${COPY_HOVER_COMMAND_ID}?${copyArgs}`})`,
+      isTrusted: true,
+    },
+  ];
+};
+
 /**
  * Monaco编辑器全局初始化状态管理
  *
@@ -70,6 +106,9 @@ export const initMonacoGlobally = async () => {
  */
 export const registerGlobalBase64Provider = () => {
   if (baseProviderRegistered) return;
+
+  // 注册悬停复制命令
+  registerCopyCommand();
 
   // 注册全局Base64悬停提供者
   registerBase64HoverProvider();
