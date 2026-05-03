@@ -195,7 +195,7 @@ export class DecorationManager {
   shouldProcessLine(
     lineNumber: number,
     content: string,
-    maxLength: number = 1000,
+    maxLength: number = 4000,
   ): boolean {
     // 超过长度限制的行跳过
     if (content.length > maxLength) {

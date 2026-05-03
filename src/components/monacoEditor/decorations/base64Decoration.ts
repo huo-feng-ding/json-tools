@@ -138,8 +138,8 @@ export const updateBase64Decorations = (
         matchCount++;
         const base64Str = match[1] || match[2];
 
-        // 超过3k不进行解码
-        if (base64Str.length < 8 || base64Str.length > 3000) {
+        // 超过12k不进行解码
+        if (base64Str.length < 8 || base64Str.length > 12000) {
           continue;
         }
 
