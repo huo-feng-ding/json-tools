@@ -5,17 +5,19 @@ import { Json5LanguageDef } from "@/components/monacoEditor/MonacoLanguageDef.ts
 import { registerBase64HoverProvider } from "@/components/monacoEditor/decorations/base64Decoration.ts";
 import { registerUnicodeHoverProvider } from "@/components/monacoEditor/decorations/unicodeDecoration.ts";
 import { registerUrlHoverProvider } from "@/components/monacoEditor/decorations/urlDecoration.ts";
+import { useTabStore } from "@/store/useTabStore.ts";
 
-// 悬停复制按钮使用的命令ID
+// 悬停按钮命令ID
 export const COPY_HOVER_COMMAND_ID = "editor.hover.copyDecodedText";
+export const OPEN_TAB_COMMAND_ID = "editor.hover.openInNewTab";
 
-let copyCommandRegistered = false;
+let hoverCommandsRegistered = false;
 
 /**
- * 注册悬停复制命令（全局一次性）
+ * 注册悬停命令（全局一次性）
  */
-const registerCopyCommand = () => {
-  if (copyCommandRegistered) return;
+const registerHoverCommands = () => {
+  if (hoverCommandsRegistered) return;
 
   monaco.editor.registerCommand(COPY_HOVER_COMMAND_ID, (_accessor, text: string) => {
     if (typeof text === "string" && text) {
@@ -23,20 +25,37 @@ const registerCopyCommand = () => {
     }
   });
 
-  copyCommandRegistered = true;
+  monaco.editor.registerCommand(OPEN_TAB_COMMAND_ID, (_accessor, text: string) => {
+    if (typeof text !== "string" || !text) return;
+    let title = "Text";
+    let content = text;
+    try {
+      const parsed = JSON.parse(text);
+      content = JSON.stringify(parsed, null, 2);
+      title = "JSON";
+    } catch {
+      // 非 JSON 保持原样
+    }
+    useTabStore.getState().addTab(title, content);
+  });
+
+  hoverCommandsRegistered = true;
 };
 
 /**
- * 构建带复制按钮的 hover 内容
+ * 构建带操作按钮的 hover 内容
  */
 export const buildHoverContents = (title: string, decoded: string): monaco.IMarkdownString[] => {
-  const copyArgs = encodeURIComponent(JSON.stringify(decoded));
+  const encodedArgs = encodeURIComponent(JSON.stringify(decoded));
 
   return [
     { value: title },
     { value: "```\n" + decoded + "\n```" },
     {
-      value: `[复制](${`command:${COPY_HOVER_COMMAND_ID}?${copyArgs}`})`,
+      value: [
+        `[复制](command:${COPY_HOVER_COMMAND_ID}?${encodedArgs})`,
+        `[新标签页打开](command:${OPEN_TAB_COMMAND_ID}?${encodedArgs})`,
+      ].join(" "),
       isTrusted: true,
     },
   ];
@@ -107,8 +126,8 @@ export const initMonacoGlobally = async () => {
 export const registerGlobalBase64Provider = () => {
   if (baseProviderRegistered) return;
 
-  // 注册悬停复制命令
-  registerCopyCommand();
+  // 注册悬停命令
+  registerHoverCommands();
 
   // 注册全局Base64悬停提供者
   registerBase64HoverProvider();
