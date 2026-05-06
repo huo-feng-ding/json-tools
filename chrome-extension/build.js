@@ -100,7 +100,7 @@ class ChromeExtensionBuilder {
     process.chdir(this.projectRoot);
     
     try {
-      execSync('npm run build', { stdio: 'inherit' });
+      execSync('pnpm build', { stdio: 'inherit' });
     } catch (error) {
       throw new Error('主应用构建失败: ' + error.message);
     }
