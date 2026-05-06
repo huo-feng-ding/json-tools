@@ -191,7 +191,7 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
                 返回列表
               </Button>
               <Button color="primary" onPress={handleRestore}>
-                确认回滚到此版本
+                回滚到此版本
               </Button>
             </>
           ) : (

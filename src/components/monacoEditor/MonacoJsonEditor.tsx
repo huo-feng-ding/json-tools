@@ -73,6 +73,8 @@ import {
   toggleImageDecorators,
 } from "@/components/monacoEditor/decorations/imageDecoration.ts";
 import { DecorationManager } from "@/components/monacoEditor/decorations/decorationManager.ts";
+import { DisposableStore } from "@/components/monacoEditor/monacoDisposables.ts";
+import { ensureProvidersRegistered } from "@/components/monacoEditor/decorations/decorationInit.ts";
 
 import "@/styles/monaco.css";
 import ErrorModal from "@/components/monacoEditor/ErrorModal.tsx";
@@ -160,6 +162,9 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
     useRef<monaco.editor.IEditorDecorationsCollection | null>(null);
   const cursorSelectionDisposableRef = useRef<monaco.IDisposable | null>(null);
 
+  // Monaco 资源生命周期管理器，统一管理所有事件监听器和 timeout
+  const disposableStore = useRef(new DisposableStore());
+
   // 从 store 获取当前 tab 的设置
   const currentTab = getTabByKey(tabKey);
   const { base64DecoderEnabled, unicodeDecoderEnabled, urlDecoderEnabled } =
@@ -224,7 +229,9 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
   const [imageDecoratorsEnabled, setImageDecoratorsEnabled] = useState(true); // 默认开启图片装饰器
 
   // 跟踪是否为首次粘贴状态（用于首次粘贴时自动格式化）
-  const [isFirstPaste, setIsFirstPaste] = useState(true);
+  // 使用 ref 避免闭包陷阱：useEffect([]) 中注册的 onDidPaste 回调
+  // 无法通过 setState 获取最新值，ref.current 始终可读
+  const isFirstPasteRef = useRef(true);
 
   // 时间戳装饰器状态
   const timestampDecoratorState: TimestampDecoratorState = {
@@ -701,7 +708,7 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
 
     // 如果清空了编辑器，重置首次粘贴状态
     if (jsonText === "") {
-      setIsFirstPaste(true);
+      isFirstPasteRef.current = true;
     }
   };
 
@@ -1512,6 +1519,9 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
       // 注意: 这里使用全局初始化的Monaco实例，不再重复加载配置
       const monacoInstance: Monaco = await loader.init();
 
+      // 确保全局悬停提供者已注册
+      ensureProvidersRegistered();
+
       if (containerRef.current) {
         const editor = monacoInstance.editor.create(containerRef.current, {
           value: value || "",
@@ -1551,77 +1561,82 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
         editor.focus();
 
         // 监听折叠状态变化
-        editor.onDidChangeHiddenAreas(() => {
-          if (editorRef.current) {
-            updateFoldingDecorations(
-              editorRef.current,
-              currentLanguage,
-              foldingDecorationsRef,
-            );
-          }
-        });
+        disposableStore.current.add(
+          editor.onDidChangeHiddenAreas(() => {
+            if (editorRef.current) {
+              updateFoldingDecorations(
+                editorRef.current,
+                currentLanguage,
+                foldingDecorationsRef,
+              );
+            }
+          }),
+        );
 
         // 监听滚动事件
-        editor.onDidScrollChange(() => {
-          if (timestampUpdateTimeoutRef.current) {
-            clearTimeout(timestampUpdateTimeoutRef.current);
-          }
-
-          timestampUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateTimestampDecorations(
-                editorRef.current,
-                timestampDecoratorState,
-              );
+        disposableStore.current.add(
+          editor.onDidScrollChange(() => {
+            if (timestampUpdateTimeoutRef.current) {
+              clearTimeout(timestampUpdateTimeoutRef.current);
             }
-          }, 200); // 添加防抖
 
-          if (base64UpdateTimeoutRef.current) {
-            clearTimeout(base64UpdateTimeoutRef.current);
-          }
+            timestampUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateTimestampDecorations(
+                  editorRef.current,
+                  timestampDecoratorState,
+                );
+              }
+            }, 200); // 添加防抖
 
-          base64UpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateBase64Decorations(editorRef.current, base64DecoratorState);
+            if (base64UpdateTimeoutRef.current) {
+              clearTimeout(base64UpdateTimeoutRef.current);
             }
-          }, 200);
 
-          if (unicodeUpdateTimeoutRef.current) {
-            clearTimeout(unicodeUpdateTimeoutRef.current);
-          }
+            base64UpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateBase64Decorations(editorRef.current, base64DecoratorState);
+              }
+            }, 200);
 
-          unicodeUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateUnicodeDecorations(
-                editorRef.current,
-                unicodeDecoratorState,
-              );
+            if (unicodeUpdateTimeoutRef.current) {
+              clearTimeout(unicodeUpdateTimeoutRef.current);
             }
-          }, 200);
 
-          if (urlUpdateTimeoutRef.current) {
-            clearTimeout(urlUpdateTimeoutRef.current);
-          }
+            unicodeUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateUnicodeDecorations(
+                  editorRef.current,
+                  unicodeDecoratorState,
+                );
+              }
+            }, 200);
 
-          urlUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateUrlDecorations(editorRef.current, urlDecoratorState);
+            if (urlUpdateTimeoutRef.current) {
+              clearTimeout(urlUpdateTimeoutRef.current);
             }
-          }, 200);
 
-          if (imageUpdateTimeoutRef.current) {
-            clearTimeout(imageUpdateTimeoutRef.current);
-          }
+            urlUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateUrlDecorations(editorRef.current, urlDecoratorState);
+              }
+            }, 200);
 
-          imageUpdateTimeoutRef.current = setTimeout(() => {
-            if (editorRef.current) {
-              updateImageDecorations(editorRef.current, imageDecoratorState);
+            if (imageUpdateTimeoutRef.current) {
+              clearTimeout(imageUpdateTimeoutRef.current);
             }
-          }, 300);
-        });
+
+            imageUpdateTimeoutRef.current = setTimeout(() => {
+              if (editorRef.current) {
+                updateImageDecorations(editorRef.current, imageDecoratorState);
+              }
+            }, 300);
+          }),
+        );
 
         // 监听内容变化
-        editor.onDidChangeModelContent((e) => {
+        disposableStore.current.add(
+          editor.onDidChangeModelContent((e) => {
           const val = editor.getValue();
           const languageId = editorRef.current?.getModel()?.getLanguageId();
 
@@ -1670,24 +1685,27 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
           onUpdateValue(val);
           setCurrentEditorValue(val);
           updateEditorStats();
-        });
+        }),
+        );
 
         // 监听选区变化，更新选中字符数
-        cursorSelectionDisposableRef.current =
+        cursorSelectionDisposableRef.current = disposableStore.current.add(
           editor.onDidChangeCursorSelection(() => {
             updateEditorStats();
-          });
+          }),
+        );
 
         // 添加粘贴事件监听：首次粘贴时自动格式化
-        editor.onDidPaste(() => {
-          if (isFirstPaste && editorRef.current) {
+        disposableStore.current.add(
+          editor.onDidPaste(() => {
+          if (isFirstPasteRef.current && editorRef.current) {
             const currentValue = editorRef.current.getValue();
 
             // 检查是否为首次粘贴（编辑器为空或只有空白字符）
             if (currentValue && currentValue.trim() !== "") {
               // 延迟执行，等待内容完全粘贴并格式化
-              setTimeout(() => {
-                if (editorRef.current && isFirstPaste) {
+              const timeoutId = setTimeout(() => {
+                if (editorRef.current && isFirstPasteRef.current) {
                   // 尝试验证并格式化
                   const val = editorRef.current.getValue();
                   const isValid = editorValueValidate(val);
@@ -1696,13 +1714,16 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
                     // 验证成功后进行格式化
                     editorFormat();
                     // 设置为非首次粘贴状态，避免重复格式化
-                    setIsFirstPaste(false);
+                    isFirstPasteRef.current = false;
                   }
                 }
               }, 100);
+              // 注册 timeout 到 store，确保清理时不会遗漏
+              disposableStore.current.addTimeout(timeoutId);
             }
           }
-        });
+        }),
+        );
 
         editorRef.current = editor;
         setIsEditorReady(true);
@@ -1782,17 +1803,26 @@ const MonacoJsonEditor: React.FC<MonacoJsonEditorProps> = ({
 
     return () => {
       clearTimeout(timeoutId);
+
+      // 统一释放所有 Monaco 事件监听器
+      disposableStore.current.dispose();
+
       // 清理过滤编辑器
       if (filterEditorRef.current) {
         filterEditorRef.current.dispose();
         filterEditorRef.current = null;
       }
+
       // 清理防抖计时器
       if (filterUpdateTimeoutRef.current) {
         clearTimeout(filterUpdateTimeoutRef.current);
       }
-      // 清理选区变化监听
-      cursorSelectionDisposableRef.current?.dispose();
+
+      // 清理主编辑器实例
+      if (editorRef.current) {
+        editorRef.current.dispose();
+        editorRef.current = null;
+      }
     };
   }, []); // 空依赖数组表示这个效果只在组件挂载和卸载时运行
 

@@ -5,10 +5,6 @@ import { HashRouter } from "react-router-dom";
 import App from "./App.tsx";
 import { Provider } from "./provider.tsx";
 
-import {
-  initMonacoGlobally,
-  registerGlobalBase64Provider,
-} from "@/components/monacoEditor/decorations/decorationInit.ts";
 import { WALManager } from "@/lib/storage/WALManager";
 import { getLockManager } from "@/lib/storage/DistributedLockManager";
 
@@ -19,16 +15,6 @@ import UtoolsListener from "@/services/utoolsListener";
 import { PWAUpdateManager } from "@/components/pwa/PWAUpdateManager";
 import registerServiceWorker from "@/utils/registerSW";
 import { isPWA } from "@/utils/pwa";
-
-// 全局初始化Monaco编辑器
-initMonacoGlobally()
-  .then(() => {
-    // 注册全局提供者
-    registerGlobalBase64Provider();
-  })
-  .catch((error) => {
-    console.error("Monaco 初始化失败:", error);
-  });
 
 // 初始化存储系统
 const initializeStorage = async () => {

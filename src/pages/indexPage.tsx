@@ -12,6 +12,7 @@ import MonacoJsonEditor, {
 } from "@/components/monacoEditor/MonacoJsonEditor.tsx";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
+import { useMonacoInit } from "@/components/monacoEditor/useMonacoInit.ts";
 // eslint-disable-next-line import/order
 import VanillaJsonEditor, {
   VanillaJsonEditorRef,
@@ -39,6 +40,7 @@ import ChromeExtensionListener from "@/services/chromeExtensionListener";
 
 export default function IndexPage() {
   const { theme } = useTheme();
+  const monacoReady = useMonacoInit();
   const monacoJsonEditorRefs = useRef<Record<string, MonacoJsonEditorRef>>({});
   const monacoDiffEditorRefs = useRef<Record<string, MonacoDiffEditorRef>>({});
   const vanillaJsonEditorRefs = useRef<Record<string, VanillaJsonEditorRef>>(
@@ -93,6 +95,36 @@ export default function IndexPage() {
     table: new Set(), // 初始化table集合
   });
 
+  // LRU 淘汰：跟踪每种编辑器类型的标签页访问顺序（最近访问在前）
+  const lruOrder = useRef<Record<string, string[]>>({
+    monaco: [],
+    diff: [],
+    vanilla: [],
+    table: [],
+  });
+
+  /** 单种编辑器类型最多同时存活的实例数 */
+  const MAX_EDITOR_INSTANCES = 5;
+
+  /**
+   * 将 key 标记为最近访问，并淘汰超出上限的最久未访问的标签页
+   * @returns 需要被卸载的 tab keys
+   */
+  const touchAndEvict = (editorType: string, key: string): string[] => {
+    const order = lruOrder.current[editorType];
+    // 移到最前面
+    const idx = order.indexOf(key);
+    if (idx !== -1) order.splice(idx, 1);
+    order.unshift(key);
+
+    // 淘汰超出上限的
+    if (order.length > MAX_EDITOR_INSTANCES) {
+      const evicted = order.splice(MAX_EDITOR_INSTANCES);
+      return evicted;
+    }
+    return [];
+  };
+
   const closeTabHandle = (keys: string[]) => {
     if (keys.length === 0) {
       return;
@@ -103,6 +135,13 @@ export default function IndexPage() {
       delete monacoDiffEditorRefs.current[key];
       delete vanillaJsonEditorRefs.current[key];
       delete jsonTableViewRefs.current[key]; // 添加删除JsonTableView引用
+
+      // 清理 LRU 记录
+      for (const type of Object.keys(lruOrder.current)) {
+        lruOrder.current[type] = lruOrder.current[type].filter(
+          (k) => k !== key,
+        );
+      }
     });
 
     // 删除 loadedEditors 中对象
@@ -176,10 +215,20 @@ export default function IndexPage() {
 
             // 如果当前 tab 未加载且正是 activeTab，则将其加入 loaded 集合
             if (!shouldRender && isVisible) {
+              // LRU 淘汰：移除最久未使用的编辑器实例
+              const evicted = touchAndEvict("monaco", tab.key);
+              const newMonacoSet = new Set([...loadedEditors.monaco, tab.key]);
+              for (const evictedKey of evicted) {
+                newMonacoSet.delete(evictedKey);
+                delete monacoJsonEditorRefs.current[evictedKey];
+              }
               setLoadedEditors((prev) => ({
                 ...prev,
-                monaco: new Set([...prev.monaco, tab.key]),
+                monaco: newMonacoSet,
               }));
+            } else if (shouldRender && isVisible) {
+              // 已加载但切换到此 tab，更新 LRU 顺序
+              touchAndEvict("monaco", tab.key);
             }
 
             // 保持一个包裹容器常驻 DOM
@@ -262,10 +311,18 @@ export default function IndexPage() {
             const isVisible = tab.key === activeTabKey;
 
             if (!shouldRender && isVisible) {
+              const evicted = touchAndEvict("diff", tab.key);
+              const newDiffSet = new Set([...loadedEditors.diff, tab.key]);
+              for (const evictedKey of evicted) {
+                newDiffSet.delete(evictedKey);
+                delete monacoDiffEditorRefs.current[evictedKey];
+              }
               setLoadedEditors((prev) => ({
                 ...prev,
-                diff: new Set([...prev.diff, tab.key]),
+                diff: newDiffSet,
               }));
+            } else if (shouldRender && isVisible) {
+              touchAndEvict("diff", tab.key);
             }
 
             return (
@@ -326,10 +383,18 @@ export default function IndexPage() {
           const isVisible = tab.key === activeTabKey;
 
           if (!shouldRender && isVisible) {
+            const evicted = touchAndEvict("vanilla", tab.key);
+            const newVanillaSet = new Set([...loadedEditors.vanilla, tab.key]);
+            for (const evictedKey of evicted) {
+              newVanillaSet.delete(evictedKey);
+              delete vanillaJsonEditorRefs.current[evictedKey];
+            }
             setLoadedEditors((prev) => ({
               ...prev,
-              vanilla: new Set([...prev.vanilla, tab.key]),
+              vanilla: newVanillaSet,
             }));
+          } else if (shouldRender && isVisible) {
+            touchAndEvict("vanilla", tab.key);
           }
 
           return (
@@ -382,11 +447,11 @@ export default function IndexPage() {
   const renderEditor = () => {
     switch (sidebarStore.activeKey) {
       case SidebarKeys.textView:
-        return renderMonacoJsonEditor();
+        return monacoReady ? renderMonacoJsonEditor() : null;
       case SidebarKeys.treeView:
         return renderVanillaJsonEditor();
       case SidebarKeys.diffView:
-        return renderMonacoDiffEditor();
+        return monacoReady ? renderMonacoDiffEditor() : null;
       case SidebarKeys.tableView:
         return renderJsonTableView();
       default:
@@ -559,40 +624,56 @@ export default function IndexPage() {
         }
 
         switch (sidebarStore.activeKey) {
-          case SidebarKeys.textView:
-            setLoadedEditors((prev) => ({
-              ...prev,
-              monaco: new Set([...prev.monaco, tab.key]),
-            }));
+          case SidebarKeys.textView: {
+            const evicted = touchAndEvict("monaco", tab.key);
+            const newSet = new Set([...loadedEditors.monaco, tab.key]);
+            for (const evictedKey of evicted) {
+              newSet.delete(evictedKey);
+              delete monacoJsonEditorRefs.current[evictedKey];
+            }
+            setLoadedEditors((prev) => ({ ...prev, monaco: newSet }));
             // 焦点切换到当前激活的 tab
             if (monacoJsonEditorRefs.current[activeTabKey]) {
               monacoJsonEditorRefs.current[activeTabKey].layout();
               monacoJsonEditorRefs.current[activeTabKey].focus();
             }
             break;
-          case SidebarKeys.treeView:
-            setLoadedEditors((prev) => ({
-              ...prev,
-              vanilla: new Set([...prev.vanilla, tab.key]),
-            }));
+          }
+          case SidebarKeys.treeView: {
+            const evicted = touchAndEvict("vanilla", tab.key);
+            const newSet = new Set([...loadedEditors.vanilla, tab.key]);
+            for (const evictedKey of evicted) {
+              newSet.delete(evictedKey);
+              delete vanillaJsonEditorRefs.current[evictedKey];
+            }
+            setLoadedEditors((prev) => ({ ...prev, vanilla: newSet }));
             break;
-          case SidebarKeys.diffView:
-            setLoadedEditors((prev) => ({
-              ...prev,
-              diff: new Set([...prev.diff, tab.key]),
-            }));
+          }
+          case SidebarKeys.diffView: {
+            const evicted = touchAndEvict("diff", tab.key);
+            const newSet = new Set([...loadedEditors.diff, tab.key]);
+            for (const evictedKey of evicted) {
+              newSet.delete(evictedKey);
+              delete monacoDiffEditorRefs.current[evictedKey];
+            }
+            setLoadedEditors((prev) => ({ ...prev, diff: newSet }));
             // 焦点切换到当前激活的 tab
             if (monacoDiffEditorRefs.current[activeTabKey]) {
               monacoDiffEditorRefs.current[activeTabKey].layout();
               monacoDiffEditorRefs.current[activeTabKey].focus();
             }
             break;
-          case SidebarKeys.tableView:
-            setLoadedEditors((prev) => ({
-              ...prev,
-              table: new Set([...prev.table, tab.key]),
-            }));
+          }
+          case SidebarKeys.tableView: {
+            const evicted = touchAndEvict("table", tab.key);
+            const newSet = new Set([...loadedEditors.table, tab.key]);
+            for (const evictedKey of evicted) {
+              newSet.delete(evictedKey);
+              delete jsonTableViewRefs.current[evictedKey];
+            }
+            setLoadedEditors((prev) => ({ ...prev, table: newSet }));
             break;
+          }
         }
       });
     }
@@ -670,10 +751,18 @@ export default function IndexPage() {
           const isVisible = tab.key === activeTabKey;
 
           if (!shouldRender && isVisible) {
+            const evicted = touchAndEvict("table", tab.key);
+            const newTableSet = new Set([...loadedEditors.table, tab.key]);
+            for (const evictedKey of evicted) {
+              newTableSet.delete(evictedKey);
+              delete jsonTableViewRefs.current[evictedKey];
+            }
             setLoadedEditors((prev) => ({
               ...prev,
-              table: new Set([...prev.table, tab.key]),
+              table: newTableSet,
             }));
+          } else if (shouldRender && isVisible) {
+            touchAndEvict("table", tab.key);
           }
 
           return (
