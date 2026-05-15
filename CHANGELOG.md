@@ -1,3 +1,26 @@
+## [1.24.3](https://github.com/fevrax/json-tools/compare/v1.24.2...v1.24.3) (2026-05-14)
+
+
+### Bug Fixes
+
+* add responsive design for new tab creation menu ([6a9966c](https://github.com/fevrax/json-tools/commit/6a9966ce44052a8ceb1c7432ab84784d9fb62dd7))
+* redesign table view welcome/error states for responsive layout ([826df66](https://github.com/fevrax/json-tools/commit/826df6660b6a522cbd8ccb2a5cc72ed1505b848c))
+
+## [1.24.2](https://github.com/fevrax/json-tools/compare/v1.24.1...v1.24.2) (2026-05-14)
+
+
+### Bug Fixes
+
+* remove duplicate manifest link to resolve PWA syntax error ([e36b666](https://github.com/fevrax/json-tools/commit/e36b6666cb8f1ffe05cf2160f38dd859fccb3f33))
+* resolve Monaco editor content rollback during typing ([575541f](https://github.com/fevrax/json-tools/commit/575541fb2a1d7de39f744eeae3ed3757982efa74))
+
+## [1.24.1](https://github.com/fevrax/json-tools/compare/v1.24.0...v1.24.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* resolve table view crash caused by TDZ and missing React key ([e1da7da](https://github.com/fevrax/json-tools/commit/e1da7dad41e5fc7ef4e3a2d64e3a0c2814cf22fb))
+
 # [1.24.0](https://github.com/fevrax/json-tools/compare/v1.23.0...v1.24.0) (2026-05-12)
 
 

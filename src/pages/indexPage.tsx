@@ -159,7 +159,7 @@ export default function IndexPage() {
     clearTimeout(monacoUpdateContentTimeoutId.current[key]);
     monacoUpdateContentTimeoutId.current[key] = setTimeout(() => {
       setTabContent(key, content);
-    }, 200);
+    }, 0);
   };
 
   // VanillaJsonEditor 更新内容后同步
