@@ -33,6 +33,27 @@ export function parseJson(jsonString: string): any {
 }
 
 /**
+ * 递归将对象树中的 LosslessNumber 实例转换为原生 number
+ * Vanilla JSON Editor 内部使用原生 JSON，无法正确处理 LosslessNumber
+ */
+export function convertLosslessToNative(value: unknown): unknown {
+  if (isLosslessNumber(value)) {
+    return value.valueOf();
+  }
+  if (Array.isArray(value)) {
+    return value.map(convertLosslessToNative);
+  }
+  if (value !== null && typeof value === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      result[k] = convertLosslessToNative(v);
+    }
+    return result;
+  }
+  return value;
+}
+
+/**
  * 使用 lossless-json 序列化对象为 JSON 字符串
  * @param value 要序列化的对象
  * @param space 缩进空格数
