@@ -4,6 +4,9 @@ import { RefObject } from "react";
 
 // 定义时间戳转换黑名单关键字
 export const TIMESTAMP_BLACKLIST = ["id", "url", "size", "count", "length"];
+const TIMESTAMP_BLACKLIST_PATTERNS = TIMESTAMP_BLACKLIST.map(
+  (keyword) => new RegExp(`"\\s*\\w*${keyword}\\w*\\s*"\\s*:`, "i"),
+);
 
 // 定义时间戳下划线装饰器接口
 export interface TimestampDecoratorState {
@@ -84,11 +87,9 @@ export const updateTimestampDecorations = (
       }
 
       // 检查该行是否包含黑名单中的字段
-      const hasBlacklistedField = TIMESTAMP_BLACKLIST.some((keyword) => {
-        const pattern = new RegExp(`"\\s*\\w*${keyword}\\w*\\s*"\\s*:`, "i");
-
-        return pattern.test(lineContent);
-      });
+      const hasBlacklistedField = TIMESTAMP_BLACKLIST_PATTERNS.some((pattern) =>
+        pattern.test(lineContent),
+      );
 
       // 如果包含黑名单中的字段，则跳过时间戳转换
       if (hasBlacklistedField) {

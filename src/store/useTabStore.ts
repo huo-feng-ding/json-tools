@@ -7,6 +7,10 @@ import { useSettingsStore } from "./useSettingsStore";
 
 import { StorageManager } from "@/lib/storage/StorageManager";
 import { getSyncManager } from "@/lib/storage/MultiWindowSyncManager";
+import {
+  getHistoryContentHash,
+  isHistoryContentTooLarge,
+} from "@/components/monacoEditor/editorPerformance";
 import { parseJson, stringifyJson, convertLosslessToNative } from "@/utils/json";
 import { generateUUID } from "@/utils/uuid";
 
@@ -20,6 +24,9 @@ export interface TabHistoryItem {
   content: string; // 内容快照
   monacoVersion: number; // 版本号
   vanilla?: Content; // vanilla 内容快照（可选）
+  truncated?: boolean; // 内容过大时不保存完整快照
+  contentLength?: number; // 原始内容长度
+  contentHash?: string; // 截断内容的轻量指纹，用于去重
 }
 
 // 存储管理器实例 - 使用共享的 syncManager
@@ -607,6 +614,19 @@ export const useTabStore = create<TabStore>()(
             return {
               tabs: state.tabs.map((t) => {
                 if (t.key === tabKey) {
+                  if (historyItem.truncated) {
+                    console.warn('[历史记录] 历史内容过大，跳过内容恢复:', {
+                      tabKey,
+                      historyKey,
+                      contentLength: historyItem.contentLength,
+                    });
+
+                    return {
+                      ...t,
+                      title: historyItem.title,
+                    };
+                  }
+
                   // 保持当前版本号，只恢复内容，避免版本号回退导致问题
                   return {
                     ...t,
@@ -701,8 +721,18 @@ const recordTabHistory = (tab: TabItem) => {
 
     // 检查最新历史记录，避免重复
     const latestHistory = currentTab.history[0];
+    const contentLength = currentTab.content.length;
+    const truncated = isHistoryContentTooLarge(currentTab.content);
+    const contentHash = truncated
+      ? getHistoryContentHash(currentTab.content)
+      : undefined;
+
     if (latestHistory) {
-      const contentChanged = latestHistory.content !== currentTab.content;
+      const contentChanged =
+        truncated || latestHistory.truncated
+          ? latestHistory.contentLength !== contentLength ||
+            latestHistory.contentHash !== contentHash
+          : latestHistory.content !== currentTab.content;
       const titleChanged = latestHistory.title !== currentTab.title;
 
       // 如果内容和标题都没变化，不记录
@@ -721,9 +751,14 @@ const recordTabHistory = (tab: TabItem) => {
       key: `history_${timestamp}_${randomSuffix}_${currentTab.uuid}`,
       timestamp: timestamp,
       title: currentTab.title,
-      content: currentTab.content,
+      content: truncated
+        ? `[历史内容过大，已跳过完整快照，原始长度 ${contentLength} 字符]`
+        : currentTab.content,
       monacoVersion: currentTab.monacoVersion,
-      vanilla: currentTab.vanilla,
+      vanilla: truncated ? undefined : currentTab.vanilla,
+      truncated,
+      contentLength,
+      contentHash,
     };
 
     // 更新 tab 的历史记录
