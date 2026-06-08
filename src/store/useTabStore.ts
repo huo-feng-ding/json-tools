@@ -1,7 +1,7 @@
 // useTabStore.ts
 import { create } from "zustand";
 import { devtools, subscribeWithSelector } from "zustand/middleware";
-import { Content, JSONContent, Mode, TextContent } from "vanilla-jsoneditor";
+import { Content, Mode, JSONContent, TextContent } from "vanilla-jsoneditor";
 
 import { useSettingsStore } from "./useSettingsStore";
 
@@ -518,7 +518,7 @@ export const useTabStore = create<TabStore>()(
 
             try {
               // 尝试解析 JSON
-              const parsedJson = JSON.parse(activeTab.content);
+              const parsedJson = parseJson(activeTab.content);
 
               activeTab.vanilla = { json: convertLosslessToNative(parsedJson) };
               activeTab.vanillaMode = Mode.tree;
