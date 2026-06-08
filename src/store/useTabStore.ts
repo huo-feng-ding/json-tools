@@ -7,7 +7,7 @@ import { useSettingsStore } from "./useSettingsStore";
 
 import { StorageManager } from "@/lib/storage/StorageManager";
 import { getSyncManager } from "@/lib/storage/MultiWindowSyncManager";
-import { stringifyJson } from "@/utils/json";
+import { parseJson, stringifyJson, convertLosslessToNative } from "@/utils/json";
 import { generateUUID } from "@/utils/uuid";
 
 /**
@@ -520,7 +520,7 @@ export const useTabStore = create<TabStore>()(
               // 尝试解析 JSON
               const parsedJson = JSON.parse(activeTab.content);
 
-              activeTab.vanilla = { json: parsedJson };
+              activeTab.vanilla = { json: convertLosslessToNative(parsedJson) };
               activeTab.vanillaMode = Mode.tree;
 
               return {

@@ -50,6 +50,14 @@ const demoTools: Tool[] = [
     path: "/toolbox/jwtParse",
     category: ["安全工具", "数据处理"],
   },
+  {
+    id: "jsonKeyNaming",
+    name: "JSON 字段命名转换",
+    icon: "solar:text-selection-bold",
+    description: "JSON字段命名风格转换，支持小驼峰、大驼峰、下划线命名互转",
+    path: "/toolbox/jsonKeyNaming",
+    category: ["数据处理"],
+  },
 ];
 
 export const useToolboxStore = create<ToolboxState>((set, get) => ({

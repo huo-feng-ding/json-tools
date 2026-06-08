@@ -482,7 +482,7 @@ export default function IndexPage() {
           vanilla2JsonContent(activeTabKey);
           setMonacoVersion(activeTabKey, currentTab.vanillaVersion);
           // 强制更新 monaco 编辑器内容
-          monacoJsonEditorRefs.current[currentTab.key].updateValue(
+          monacoJsonEditorRefs.current[currentTab.key]?.updateValue(
             activeTab().content,
           );
           break;

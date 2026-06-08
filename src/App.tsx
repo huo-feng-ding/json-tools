@@ -18,6 +18,9 @@ const DataFormatConverter = React.lazy(
 const JwtParsePage = React.lazy(
   () => import("@/pages/tools/jwtParsePage.tsx"),
 );
+const JsonKeyNamingPage = React.lazy(
+  () => import("@/pages/tools/jsonKeyNamingPage.tsx"),
+);
 
 /** 页面级加载占位符 */
 const PageLoader = () => (
@@ -43,6 +46,10 @@ function App() {
           path="/toolbox/dataFormatConverter"
         />
         <Route element={<JwtParsePage />} path="/toolbox/jwtParse" />
+        <Route
+          element={<JsonKeyNamingPage />}
+          path="/toolbox/jsonKeyNaming"
+        />
       </Routes>
     </Suspense>
   );
