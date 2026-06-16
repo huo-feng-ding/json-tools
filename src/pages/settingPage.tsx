@@ -28,16 +28,14 @@ import {
   AIRouteType,
 } from "@/store/useOpenAIConfigStore.ts";
 import { openAIService } from "@/services/openAIService.ts";
-
 // 导入解码器控制函数
 import { setBase64DecorationEnabled, setBase64ProviderEnabled } from "@/components/monacoEditor/decorations/base64Decoration.ts";
 import { setUnicodeDecorationEnabled } from "@/components/monacoEditor/decorations/unicodeDecoration.ts";
 import { setTimestampDecorationEnabled } from "@/components/monacoEditor/decorations/timestampDecoration.ts";
 import { setUrlDecorationEnabled, setUrlProviderEnabled } from "@/components/monacoEditor/decorations/urlDecoration.ts";
 import { parseShortcut } from "@/utils/shortcut.ts";
-
-// 检查 utools 是否可用
-const isUtoolsAvailable = typeof window !== "undefined" && "utools" in window;
+import { isUtoolsAvailable } from "@/utils/env";
+import ExternalLink from "@/components/ExternalLink";
 
 export default function SettingsPage() {
   const {
@@ -104,7 +102,11 @@ export default function SettingsPage() {
   const [newModelLabel, setNewModelLabel] = useState("");
   const { isOpen, onOpen, onClose } = useDisclosure();
   // 确认对话框状态管理
-  const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
+  const {
+    isOpen: isConfirmOpen,
+    onOpen: onConfirmOpen,
+    onClose: onConfirmClose,
+  } = useDisclosure();
   const [pendingValue, setPendingValue] = useState<boolean | null>(null);
 
   // 添加模型模式，用于区分是在SSOOAI线路还是自定义线路添加模型
@@ -114,8 +116,10 @@ export default function SettingsPage() {
 
   // 增加状态来保存要测试的模型
   const [testModelUtools, setTestModelUtools] = useState<string>("");
-  const [testModelSsooai, setTestModelSsooai] = useState<string>("deepseek-v4-pro");
-  const [testModelCustom, setTestModelCustom] = useState<string>("deepseek-v4-pro");
+  const [testModelSsooai, setTestModelSsooai] =
+    useState<string>("deepseek-v4-pro");
+  const [testModelCustom, setTestModelCustom] =
+    useState<string>("deepseek-v4-pro");
 
   // 添加状态跟踪当前正在配置的线路类型
   const [configuringRoute, setConfiguringRoute] = useState<AIRouteType | null>(
@@ -203,24 +207,24 @@ export default function SettingsPage() {
       case "timestampDecoderEnabled":
         setTimestampDecorationEnabled(value);
         setTimestampDecoderEnabled(value);
-        toast.success(`时间戳解码器已${value ? '启用' : '禁用'}`);
+        toast.success(`时间戳解码器已${value ? "启用" : "禁用"}`);
         break;
       case "base64DecoderEnabled":
         setBase64DecorationEnabled(value);
         setBase64ProviderEnabled(value);
         setBase64DecoderEnabled(value);
-        toast.success(`Base64解码器已${value ? '启用' : '禁用'}`);
+        toast.success(`Base64解码器已${value ? "启用" : "禁用"}`);
         break;
       case "unicodeDecoderEnabled":
         setUnicodeDecorationEnabled(value);
         setUnicodeDecoderEnabled(value);
-        toast.success(`Unicode解码器已${value ? '启用' : '禁用'}`);
+        toast.success(`Unicode解码器已${value ? "启用" : "禁用"}`);
         break;
       case "urlDecoderEnabled":
         setUrlDecorationEnabled(value);
         setUrlProviderEnabled(value);
         setUrlDecoderEnabled(value);
-        toast.success(`URL解码器已${value ? '启用' : '禁用'}`);
+        toast.success(`URL解码器已${value ? "启用" : "禁用"}`);
         break;
       case "newTabShortcut":
         setNewTabShortcut(value);
@@ -253,11 +257,13 @@ export default function SettingsPage() {
     try {
       // 验证快捷键格式
       const config = parseShortcut(newShortcut);
+
       if (!config.key) {
         toast.error("无效的快捷键格式");
+
         return;
       }
-      
+
       if (shortcutType === "newTab") {
         setNewTabShortcut(newShortcut);
         toast.success(`新建标签页快捷键已设置为 ${newShortcut}`);
@@ -683,25 +689,36 @@ export default function SettingsPage() {
           ))}
 
           {/* 本地数据持久化 - 融合设计 */}
-          <div className={`p-5 transition-all duration-200 ${!persistentDataEnabled ? 'bg-warning/5 hover:bg-warning/10' : 'hover:bg-default-100/40'}`}>
+          <div
+            className={`p-5 transition-all duration-200 ${!persistentDataEnabled ? "bg-warning/5 hover:bg-warning/10" : "hover:bg-default-100/40"}`}
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4 flex-1">
-                <div className={`p-3 rounded-xl shadow-sm transition-colors ${!persistentDataEnabled ? 'bg-warning/20 text-warning' : 'bg-primary/15 text-primary'}`}>
+                <div
+                  className={`p-3 rounded-xl shadow-sm transition-colors ${!persistentDataEnabled ? "bg-warning/20 text-warning" : "bg-primary/15 text-primary"}`}
+                >
                   <Icon icon="lucide:database" width={22} />
                 </div>
                 <div className="flex-1">
-                  <p className={`font-medium ${!persistentDataEnabled ? 'text-warning-900 dark:text-warning-100' : 'text-default-900'}`}>
+                  <p
+                    className={`font-medium ${!persistentDataEnabled ? "text-warning-900 dark:text-warning-100" : "text-default-900"}`}
+                  >
                     本地数据持久化
                   </p>
-                  <p className={`text-sm mt-1 ${!persistentDataEnabled ? 'text-warning-700 dark:text-warning-300' : 'text-default-500'}`}>
+                  <p
+                    className={`text-sm mt-1 ${!persistentDataEnabled ? "text-warning-700 dark:text-warning-300" : "text-default-500"}`}
+                  >
                     {!persistentDataEnabled
-                      ? '当前已关闭，刷新页面后数据将丢失'
-                      : '已开启，您的数据将自动保存到本地'
-                    }
+                      ? "当前已关闭，刷新页面后数据将丢失"
+                      : "已开启，您的数据将自动保存到本地"}
                   </p>
                   {!persistentDataEnabled && (
                     <div className="flex items-center gap-2 mt-3 p-3 rounded-xl bg-warning/10 border border-warning/20">
-                      <Icon icon="solar:info-circle-bold" className="text-warning flex-shrink-0" width={16} />
+                      <Icon
+                        className="text-warning flex-shrink-0"
+                        icon="solar:info-circle-bold"
+                        width={16}
+                      />
                       <p className="text-xs text-warning-800 dark:text-warning-200 leading-relaxed">
                         如需保留数据，请重新开启此功能
                       </p>
@@ -714,7 +731,9 @@ export default function SettingsPage() {
                 color="primary"
                 isSelected={persistentDataEnabled}
                 size="lg"
-                onValueChange={(value) => handleSettingChange("persistentDataEnabled", value)}
+                onValueChange={(value) =>
+                  handleSettingChange("persistentDataEnabled", value)
+                }
               />
             </div>
           </div>
@@ -733,7 +752,9 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3 ml-4">
-              <span className="text-sm text-default-600 w-8 text-center">{defaultIndentSize}</span>
+              <span className="text-sm text-default-600 w-8 text-center">
+                {defaultIndentSize}
+              </span>
               <Slider
                 aria-label="调整默认缩进大小"
                 className="w-32"
@@ -741,7 +762,9 @@ export default function SettingsPage() {
                 minValue={1}
                 step={1}
                 value={defaultIndentSize}
-                onChange={(value) => handleSettingChange("defaultIndentSize", value as number)}
+                onChange={(value) =>
+                  handleSettingChange("defaultIndentSize", value as number)
+                }
               />
             </div>
           </div>
@@ -827,13 +850,15 @@ export default function SettingsPage() {
                   if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) {
                     e.preventDefault();
                     const modifiers = [];
-                    if (e.ctrlKey) modifiers.push('Ctrl');
-                    if (e.altKey) modifiers.push('Alt');
-                    if (e.shiftKey) modifiers.push('Shift');
-                    if (e.metaKey) modifiers.push('Cmd');
-                    
+
+                    if (e.ctrlKey) modifiers.push("Ctrl");
+                    if (e.altKey) modifiers.push("Alt");
+                    if (e.shiftKey) modifiers.push("Shift");
+                    if (e.metaKey) modifiers.push("Cmd");
+
                     const key = e.key.toUpperCase();
-                    const shortcut = [...modifiers, key].join('+');
+                    const shortcut = [...modifiers, key].join("+");
+
                     handleShortcutChange("newTab", shortcut);
                   }
                 }}
@@ -864,19 +889,23 @@ export default function SettingsPage() {
                 size="sm"
                 value={closeTabShortcut}
                 variant="bordered"
-                onChange={(e) => handleShortcutChange("closeTab", e.target.value)}
+                onChange={(e) =>
+                  handleShortcutChange("closeTab", e.target.value)
+                }
                 onKeyDown={(e) => {
                   // 支持用户通过按键设置快捷键
                   if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) {
                     e.preventDefault();
                     const modifiers = [];
-                    if (e.ctrlKey) modifiers.push('Ctrl');
-                    if (e.altKey) modifiers.push('Alt');
-                    if (e.shiftKey) modifiers.push('Shift');
-                    if (e.metaKey) modifiers.push('Cmd');
-                    
+
+                    if (e.ctrlKey) modifiers.push("Ctrl");
+                    if (e.altKey) modifiers.push("Alt");
+                    if (e.shiftKey) modifiers.push("Shift");
+                    if (e.metaKey) modifiers.push("Cmd");
+
                     const key = e.key.toUpperCase();
-                    const shortcut = [...modifiers, key].join('+');
+                    const shortcut = [...modifiers, key].join("+");
+
                     handleShortcutChange("closeTab", shortcut);
                   }
                 }}
@@ -897,18 +926,10 @@ export default function SettingsPage() {
               />
               <div className="text-sm text-default-700">
                 <p className="font-medium mb-1 text-primary">关于快捷键</p>
-                <p>
-                  • 支持的修饰键：Ctrl、Alt、Shift、Cmd（Mac）
-                </p>
-                <p>
-                  • 支持的主键：字母键（A-Z）、数字键（0-9）
-                </p>
-                <p>
-                  • 示例格式：Ctrl+Shift+T、Cmd+Shift+T、Ctrl+T
-                </p>
-                <p>
-                  • 在输入框中按下组合键可自动设置
-                </p>
+                <p>• 支持的修饰键：Ctrl、Alt、Shift、Cmd（Mac）</p>
+                <p>• 支持的主键：字母键（A-Z）、数字键（0-9）</p>
+                <p>• 示例格式：Ctrl+Shift+T、Cmd+Shift+T、Ctrl+T</p>
+                <p>• 在输入框中按下组合键可自动设置</p>
               </div>
             </div>
           </div>
@@ -955,14 +976,12 @@ export default function SettingsPage() {
                 </div>
                 <div className="text-xs text-[#666] dark:text-gray-300 mt-1">
                   由{" "}
-                  <a
+                  <ExternalLink
                     className="text-primary hover:underline"
                     href="https://api.ssooai.com"
-                    rel="noopener noreferrer"
-                    target="_blank"
                   >
                     SSOOAI
-                  </a>{" "}
+                  </ExternalLink>{" "}
                   提供基础AI问答服务，无需配置
                 </div>
               </div>
@@ -1093,24 +1112,20 @@ export default function SettingsPage() {
           <span className="font-medium text-primary">推荐使用 SSOOAI API</span>
         </div>
         <p className="text-sm text-default-700">
-          <a
+          <ExternalLink
             className="text-primary hover:underline font-medium"
             href="https://api.ssooai.com"
-            rel="noopener noreferrer"
-            target="_blank"
           >
             SSOOAI
-          </a>{" "}
+          </ExternalLink>{" "}
           提供稳定、高效且价格实惠的 API 服务，支持多种先进模型，包括
           ChatGPT、DeepSeek、Claude 4 等。 访问{" "}
-          <a
+          <ExternalLink
             className="text-primary hover:underline font-medium"
             href="https://api.ssooai.com"
-            rel="noopener noreferrer"
-            target="_blank"
           >
             https://api.ssooai.com
-          </a>{" "}
+          </ExternalLink>{" "}
           获取 API 密钥，
           体验更快的响应速度和更高的稳定性。新用户可享受充值优惠！
         </p>
@@ -1158,14 +1173,12 @@ export default function SettingsPage() {
                 默认模型: <span className="font-medium">DeepSeek V4 Pro</span>{" "}
                 <span className="text-xs text-primary">
                   (由{" "}
-                  <a
+                  <ExternalLink
                     className="text-primary hover:underline"
                     href="https://api.ssooai.com"
-                    rel="noopener noreferrer"
-                    target="_blank"
                   >
                     SSOOAI
-                  </a>{" "}
+                  </ExternalLink>{" "}
                   提供)
                 </span>
               </div>
@@ -1208,14 +1221,12 @@ export default function SettingsPage() {
                 </div>
                 <p className="text-xs mt-2 text-default-700">
                   SSOOAI 提供更稳定的 API 服务和多种先进模型。 访问{" "}
-                  <a
+                  <ExternalLink
                     className="text-primary hover:underline font-medium"
                     href="https://api.ssooai.com"
-                    rel="noopener noreferrer"
-                    target="_blank"
                   >
                     https://api.ssooai.com
-                  </a>{" "}
+                  </ExternalLink>{" "}
                   注册并获取 API 密钥。
                 </p>
               </div>
@@ -1253,7 +1264,11 @@ export default function SettingsPage() {
                 />
                 <Button
                   color="primary"
-                  isDisabled={testingRoute !== null || !ssooaiRoute.apiKey || !testModelSsooai}
+                  isDisabled={
+                    testingRoute !== null ||
+                    !ssooaiRoute.apiKey ||
+                    !testModelSsooai
+                  }
                   isLoading={testingRoute === "ssooai"}
                   radius="full"
                   size="sm"
@@ -1828,7 +1843,9 @@ export default function SettingsPage() {
               color="primary"
               isSelected={timestampDecoderEnabled}
               size="lg"
-              onValueChange={(value) => handleSettingChange("timestampDecoderEnabled", value)}
+              onValueChange={(value) =>
+                handleSettingChange("timestampDecoderEnabled", value)
+              }
             />
           </div>
 
@@ -1850,7 +1867,9 @@ export default function SettingsPage() {
               color="primary"
               isSelected={base64DecoderEnabled}
               size="lg"
-              onValueChange={(value) => handleSettingChange("base64DecoderEnabled", value)}
+              onValueChange={(value) =>
+                handleSettingChange("base64DecoderEnabled", value)
+              }
             />
           </div>
 
@@ -1872,7 +1891,9 @@ export default function SettingsPage() {
               color="primary"
               isSelected={unicodeDecoderEnabled}
               size="lg"
-              onValueChange={(value) => handleSettingChange("unicodeDecoderEnabled", value)}
+              onValueChange={(value) =>
+                handleSettingChange("unicodeDecoderEnabled", value)
+              }
             />
           </div>
 
@@ -1894,7 +1915,9 @@ export default function SettingsPage() {
               color="primary"
               isSelected={urlDecoderEnabled}
               size="lg"
-              onValueChange={(value) => handleSettingChange("urlDecoderEnabled", value)}
+              onValueChange={(value) =>
+                handleSettingChange("urlDecoderEnabled", value)
+              }
             />
           </div>
 
@@ -2016,39 +2039,36 @@ export default function SettingsPage() {
                 技术支持
               </h4>
               <div className="space-y-3">
-                <a
+                <ExternalLink
+                  showUrl
                   className="flex items-center gap-2.5 p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                   href="https://github.com/fevrax/json-tools"
-                  rel="noopener noreferrer"
-                  target="_blank"
                 >
                   <div className="p-1 rounded-full bg-default-100">
                     <Icon icon="mdi:github" width={16} />
                   </div>
                   <span className="font-medium">GitHub 仓库</span>
-                </a>
-                <a
+                </ExternalLink>
+                <ExternalLink
+                  showUrl
                   className="flex items-center gap-2.5 p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
                   href="https://github.com/fevrax/json-tools/issues"
-                  rel="noopener noreferrer"
-                  target="_blank"
                 >
                   <div className="p-1 rounded-full bg-default-100">
                     <Icon icon="solar:chat-square-code-bold" width={16} />
                   </div>
                   <span className="font-medium">问题反馈</span>
-                </a>
-                <a
+                </ExternalLink>
+                <ExternalLink
+                  showUrl
                   className="flex items-center gap-2.5 p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors"
-                  href="https://yourdocs.com"
-                  rel="noopener noreferrer"
-                  target="_blank"
+                  href="https://github.com/fevrax/json-tools"
                 >
                   <div className="p-1 rounded-full bg-default-100">
                     <Icon icon="solar:document-bold" width={16} />
                   </div>
                   <span className="font-medium">使用文档</span>
-                </a>
+                </ExternalLink>
               </div>
             </div>
           </div>
@@ -2197,7 +2217,9 @@ export default function SettingsPage() {
           <ModalHeader>确认关闭本地存储？</ModalHeader>
           <ModalBody>
             <p>关闭后，您的所有用户数据（标签页、输入内容等）将不再保存。</p>
-            <p className="mt-2 text-warning">⚠️ 此操作将立即清除已有数据，且无法恢复。</p>
+            <p className="mt-2 text-warning">
+              ⚠️ 此操作将立即清除已有数据，且无法恢复。
+            </p>
           </ModalBody>
           <ModalFooter>
             <Button variant="flat" onPress={onConfirmClose}>
