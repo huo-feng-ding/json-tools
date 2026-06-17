@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface ToolboxPageTemplateProps {
   toolName: string; // 动态工具名称
@@ -21,6 +21,8 @@ export default function ToolboxPageTemplate({
   children,
 }: ToolboxPageTemplateProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const showBackButton = location.pathname.startsWith("/toolbox");
 
   return (
     <div className="bg-default-50 w-full h-full flex flex-col">
@@ -28,19 +30,21 @@ export default function ToolboxPageTemplate({
         {/* 头部区域 */}
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-1.5">
-            <Button
-              isIconOnly
-              aria-label="返回工具箱"
-              size="sm"
-              variant="light"
-              onPress={() => navigate("/toolbox")}
-            >
-              <Icon
-                className="text-default-500"
-                icon="solar:arrow-left-outline"
-                width={18}
-              />
-            </Button>
+            {showBackButton && (
+              <Button
+                isIconOnly
+                aria-label="返回工具箱"
+                size="sm"
+                variant="light"
+                onPress={() => navigate("/toolbox")}
+              >
+                <Icon
+                  className="text-default-500"
+                  icon="solar:arrow-left-outline"
+                  width={18}
+                />
+              </Button>
+            )}
 
             <h1 className="text-base font-bold flex items-center ml-0.5">
               <Icon
@@ -55,10 +59,10 @@ export default function ToolboxPageTemplate({
 
         {/* 操作和状态区域 */}
         {(actions || statusIndicator) && (
-          <div className="mb-2 flex flex-wrap justify-between gap-1.5 items-center">
-            <div className="flex items-center gap-1.5 [&_button]:h-7 [&_button]:min-w-0 [&_button]:px-2 [&_button]:text-xs">{actions}</div>
+          <div className="mb-2 flex justify-between gap-1.5 items-center">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-1 [&_button]:h-7 [&_button]:min-w-0 [&_button]:shrink-0 [&_button]:px-2 [&_button]:text-xs">{actions}</div>
 
-            <div className="flex items-center">{statusIndicator}</div>
+            <div className="flex shrink-0 items-center">{statusIndicator}</div>
           </div>
         )}
 

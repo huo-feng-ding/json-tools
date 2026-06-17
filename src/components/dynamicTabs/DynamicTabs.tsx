@@ -1468,8 +1468,8 @@ const DynamicTabs: React.FC<DynamicTabsProps> = ({
             aria-label="标签页"
             classNames={{
               tabList: `gap-1 w-full h-10 relative rounded-none p-0 pr-4 ml-2 overflow-x-visible flex-shrink-0`,
-              tab: `max-w-fit px-1.5 h-10 flex-shrink-0 data-[hover=true]:bg-default-100 rounded-t-md transition-colors font-size-tab`,
-              cursor: "w-full",
+              tab: `max-w-fit px-1.5 h-10 flex-shrink-0 data-[hover=true]:bg-default-100 rounded-t-md transition-colors font-size-tab after:content-[''] after:absolute after:left-1.5 after:right-1.5 after:bottom-0 after:h-[2px] after:bg-foreground after:opacity-0 data-[selected=true]:after:opacity-100`,
+              cursor: "hidden",
               panel:
                 "flex-grow overflow-auto border-t border-divider px-0 pb-0 pt-1",
             }}
@@ -1488,7 +1488,7 @@ const DynamicTabs: React.FC<DynamicTabsProps> = ({
                 key={tab.key}
                 title={
                   <div
-                    className={cn("flex items-center space-x-2 z-40", {
+                    className={cn("flex items-center gap-1.5 z-40", {
                       "opacity-0": editingTab === tab.key,
                     })}
                     data-key={tab.key}
@@ -1498,8 +1498,10 @@ const DynamicTabs: React.FC<DynamicTabsProps> = ({
                     onDoubleClick={(e) => handleDoubleClick(tab, e)}
                   >
                     <>
-                      <span className="select-none text-sm">{tab.title}</span>
-                      {tab.extraData?.url && (
+                      <span className="select-none text-sm max-w-[160px] truncate">
+                        {tab.title}
+                      </span>
+                      {tab.kind === "json" && tab.extraData?.url && (
                         <div
                           aria-label="刷新数据"
                           className="rounded-full cursor-pointer flex items-center justify-center z-10 h-6 px-1 !ml-1 text-default-400 hover:text-default-600 hover:bg-default-200 transition-colors"
