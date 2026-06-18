@@ -1,3 +1,17 @@
+# [1.26.0](https://github.com/fevrax/json-tools/compare/v1.25.0...v1.26.0) (2026-06-18)
+
+
+### Bug Fixes
+
+* optimize monaco editor validation ([a28b651](https://github.com/fevrax/json-tools/commit/a28b651627aba7abd6c5ba87bc045f89d31dea98))
+* 在 uTools 环境下使用 shellOpenExternal 打开外链 ([fde7737](https://github.com/fevrax/json-tools/commit/fde7737da207a1485336328b62cc5b3b389bbba4))
+
+
+### Features
+
+* open toolbox tools in tabs ([988469c](https://github.com/fevrax/json-tools/commit/988469cef8a86b960680dee2eda674c37fd6d075))
+* redesign settings page ([4d500ee](https://github.com/fevrax/json-tools/commit/4d500ee6d074c022aa7de115877d0c443cc1a872))
+
 # [1.25.0](https://github.com/fevrax/json-tools/compare/v1.24.3...v1.25.0) (2026-06-04)
 
 

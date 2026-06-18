@@ -17,14 +17,12 @@ import { items, SidebarKeys } from "@/components/sidebar/Items.tsx";
 import { ThemeSwitch } from "@/components/button/ThemeSwitch.tsx";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
+import { useTabStore } from "@/store/useTabStore";
 import { getFontSizeConfig } from "@/styles/fontSize";
 
-function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function RootLayout({ children }: { children: React.ReactNode }) {
   const sidebarStore = useSidebarStore();
+  const { tabs, activeTabKey, setActiveTab, addTab } = useTabStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -35,6 +33,7 @@ function RootLayout({
   const handleSidebarSelect = (
     key: string | React.SyntheticEvent<HTMLUListElement>,
   ) => {
+    const selectedKey = key as SidebarKeys;
     let isContinue = false;
 
     items.forEach((item) => {
@@ -48,15 +47,58 @@ function RootLayout({
       return;
     }
 
+    const isEditorView = [
+      SidebarKeys.textView,
+      SidebarKeys.treeView,
+      SidebarKeys.diffView,
+      SidebarKeys.tableView,
+    ].includes(selectedKey);
+
+    if (isEditorView) {
+      const currentTab = tabs.find((tab) => tab.key === activeTabKey);
+
+      if (currentTab && currentTab.kind !== "json") {
+        const lastJsonTab = [...tabs]
+          .reverse()
+          .find((tab) => tab.kind === "json");
+
+        if (lastJsonTab) {
+          setActiveTab(lastJsonTab.key);
+        } else {
+          addTab(undefined, undefined);
+        }
+      }
+    }
+
     if (location.pathname !== "/") {
       navigate("/");
     }
-    sidebarStore.updateClickSwitchKey(key as SidebarKeys);
+    sidebarStore.updateClickSwitchKey(selectedKey);
   };
 
+  // 折叠/展开：同时持久化到设置 store（修复此前折叠状态不保存的问题）
   const onToggle = React.useCallback(() => {
-    setIsCollapsed((prev) => !prev);
+    setIsCollapsed((prev) => {
+      const next = !prev;
+
+      useSettingsStore.getState().setExpandSidebar(!next);
+
+      return next;
+    });
   }, []);
+
+  // 当前高亮项：从路由派生，确保任何页面下高亮都与实际位置一致。
+  // 编辑器四视图仍由 store 的 activeKey 驱动 renderEditor()，高亮与编辑器选择解耦。
+  const currentKey = React.useMemo(() => {
+    const pathname = location.pathname;
+    const currentTab = tabs.find((tab) => tab.key === activeTabKey);
+
+    if (pathname === "/settings") return SidebarKeys.settings;
+    if (pathname.startsWith("/toolbox")) return SidebarKeys.toolbox;
+    if (currentTab && currentTab.kind !== "json") return SidebarKeys.toolbox;
+
+    return sidebarStore.activeKey;
+  }, [activeTabKey, location.pathname, sidebarStore.activeKey, tabs]);
 
   useEffect(() => {
     const init = async () => {
@@ -113,33 +155,31 @@ function RootLayout({
               <Icon
                 className="cursor-pointer dark:text-primary-foreground/60 [&>g]:stroke-[1px]"
                 icon="solar:round-alt-arrow-left-line-duotone"
-                width={28}
+                width={20}
                 onClick={onToggle}
               />
             </div>
           </div>
           <Spacer y={4} />
 
-          {/* 菜单项*/}
+          {/* 菜单项（含设置一级项，高亮从路由派生）*/}
           <Sidebar
-            currentKey={useSidebarStore().activeKey}
-            iconClassName="group-data-[selected=true]:text-default-50"
+            currentKey={currentKey}
+            iconClassName="group-data-[selected=true]:text-default-900"
             isCompact={isCollapsed}
             itemClasses={{
               base: cn(
-                "rounded-large data-[selected=true]:!bg-default-700",
+                "data-[selected=true]:bg-default-200 data-[hover=true]:bg-default-200/70 group-data-[selected=true]:text-default-900",
                 {
                   "px-3": !isCollapsed,
                   "px-0 py-0": isCollapsed,
-                }
+                },
               ),
-              title: "group-data-[selected=true]:text-default-50",
+              title: "group-data-[selected=true]:text-default-900",
             }}
             items={items}
             onSelect={handleSidebarSelect}
           />
-
-          <Spacer y={8} />
 
           <div
             className={cn("mt-auto flex flex-col", {
@@ -161,57 +201,17 @@ function RootLayout({
                 >
                   <Icon
                     className="cursor-pointer dark:text-primary-foreground/60 [&>g]:stroke-[1px]"
-                    height={24}
+                    height={20}
                     icon="solar:round-alt-arrow-right-line-duotone"
-                    width={24}
+                    width={20}
                     onClick={onToggle}
                   />
                 </Button>
               </Tooltip>
             )}
 
-            {/* 主题切换 */}
+            {/* 主题切换（设置已提升为菜单项，底部仅保留主题/折叠）*/}
             <ThemeSwitch isCollapsed={isCollapsed} />
-            <Tooltip
-              content="更多设置"
-              isDisabled={!isCollapsed}
-              placement="right"
-            >
-              <Button
-                aria-label="更多设置"
-                className={cn(
-                  "justify-start text-default-500 data-[hover=true]:text-foreground",
-                  {
-                    "justify-center": isCollapsed,
-                  },
-                )}
-                isIconOnly={isCollapsed}
-                startContent={
-                  isCollapsed ? null : (
-                    <Icon
-                      className="flex-none rotate-180 text-default-500"
-                      icon="solar:settings-outline"
-                      width={24}
-                      onClick={(e) => e.preventDefault()}
-                    />
-                  )
-                }
-                variant="light"
-                onPress={() => {
-                  navigate("./settings");
-                }}
-              >
-                {isCollapsed ? (
-                  <Icon
-                    className="rotate-180 text-default-500"
-                    icon="solar:settings-outline"
-                    width={24}
-                  />
-                ) : (
-                  "更多设置"
-                )}
-              </Button>
-            </Tooltip>
           </div>
         </div>
       </SidebarDrawer>
@@ -226,14 +226,15 @@ function RootLayout({
 function FontSizeLayout({ children }: { children: React.ReactNode }) {
   const { fontSize } = useSettingsStore();
   const fontSizeConfig = getFontSizeConfig(fontSize);
+
   return (
     <div
+      className="font-size-text"
       style={{
         // 应用字体大小到整个布局
         fontSize: fontSizeConfig.base,
         lineHeight: fontSizeConfig.lineHeight,
       }}
-      className="font-size-text"
     >
       {children}
     </div>

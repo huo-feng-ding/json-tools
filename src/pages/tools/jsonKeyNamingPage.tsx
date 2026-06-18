@@ -9,10 +9,7 @@ import MonacoEditor, {
   MonacoJsonEditorRef,
 } from "@/components/monacoEditor/MonacoJsonEditor.tsx";
 import ToolboxPageTemplate from "@/layouts/toolboxPageTemplate";
-import {
-  convertKeysDeep,
-  type NamingFormat,
-} from "@/utils/keyNamingConverter";
+import { convertKeysDeep, type NamingFormat } from "@/utils/keyNamingConverter";
 
 const FORMAT_OPTIONS: {
   format: NamingFormat;
@@ -40,7 +37,8 @@ const FORMAT_OPTIONS: {
     inactiveBg: "bg-primary-50 dark:bg-primary-950/30",
     inactiveBorder: "border-primary-200 dark:border-primary-800/40",
     inactiveHoverBg: "hover:bg-primary-100 dark:hover:bg-primary-900/40",
-    inactiveHoverBorder: "hover:border-primary-300 dark:hover:border-primary-700/60",
+    inactiveHoverBorder:
+      "hover:border-primary-300 dark:hover:border-primary-700/60",
     inactiveIconColor: "text-primary-400",
     activeBg: "bg-gradient-to-br from-primary-500 to-primary-600",
     activeBorder: "border-primary-500",
@@ -56,7 +54,8 @@ const FORMAT_OPTIONS: {
     inactiveBg: "bg-secondary-50 dark:bg-secondary-950/30",
     inactiveBorder: "border-secondary-200 dark:border-secondary-800/40",
     inactiveHoverBg: "hover:bg-secondary-100 dark:hover:bg-secondary-900/40",
-    inactiveHoverBorder: "hover:border-secondary-300 dark:hover:border-secondary-700/60",
+    inactiveHoverBorder:
+      "hover:border-secondary-300 dark:hover:border-secondary-700/60",
     inactiveIconColor: "text-secondary-400",
     activeBg: "bg-gradient-to-br from-secondary-500 to-secondary-600",
     activeBorder: "border-secondary-500",
@@ -72,7 +71,8 @@ const FORMAT_OPTIONS: {
     inactiveBg: "bg-success-50 dark:bg-success-950/30",
     inactiveBorder: "border-success-200 dark:border-success-800/40",
     inactiveHoverBg: "hover:bg-success-100 dark:hover:bg-success-900/40",
-    inactiveHoverBorder: "hover:border-success-300 dark:hover:border-success-700/60",
+    inactiveHoverBorder:
+      "hover:border-success-300 dark:hover:border-success-700/60",
     inactiveIconColor: "text-success-400",
     activeBg: "bg-gradient-to-br from-success-500 to-success-600",
     activeBorder: "border-success-500",
@@ -104,7 +104,9 @@ export default function JsonKeyNamingPage() {
       setOutputValue(result);
       outputEditorRef.current?.updateValue(result);
       setActiveFormat(format);
-      toast.success(`已转换为${FORMAT_OPTIONS.find((f) => f.format === format)?.label}`);
+      toast.success(
+        `已转换为${FORMAT_OPTIONS.find((f) => f.format === format)?.label}`,
+      );
     } catch (e) {
       toast.error(`JSON 解析失败: ${(e as Error).message}`);
     }
@@ -202,46 +204,57 @@ export default function JsonKeyNamingPage() {
 
         {/* 中间按钮列 */}
         <div className="flex flex-col items-center justify-center gap-3 min-w-28 px-2">
-          {FORMAT_OPTIONS.map(({
-            format, displayText, example, inactiveBg, inactiveBorder,
-            inactiveHoverBg, inactiveHoverBorder, inactiveIconColor,
-            activeBg, activeBorder, activeShadow,
-          }) => {
-            const isActive = activeFormat === format;
+          {FORMAT_OPTIONS.map(
+            ({
+              format,
+              displayText,
+              example,
+              inactiveBg,
+              inactiveBorder,
+              inactiveHoverBg,
+              inactiveHoverBorder,
+              inactiveIconColor,
+              activeBg,
+              activeBorder,
+              activeShadow,
+            }) => {
+              const isActive = activeFormat === format;
 
-            return (
-              <button
-                key={format}
-                className={`group w-full rounded-xl px-3 py-2.5 text-sm font-medium border
+              return (
+                <button
+                  key={format}
+                  className={`group w-full rounded-xl px-3 py-2.5 text-sm font-medium border
                   transition-all duration-200 ease-out
                   active:scale-[0.97]
-                  ${isActive
-                    ? `${activeBg} ${activeBorder} text-white shadow-lg ${activeShadow} scale-[1.02]`
-                    : `${inactiveBg} ${inactiveBorder} ${inactiveHoverBg} ${inactiveHoverBorder} text-default-700 dark:text-default-300 hover:shadow-md hover:scale-[1.02]`
+                  ${
+                    isActive
+                      ? `${activeBg} ${activeBorder} text-white shadow-lg ${activeShadow} scale-[1.02]`
+                      : `${inactiveBg} ${inactiveBorder} ${inactiveHoverBg} ${inactiveHoverBorder} text-default-700 dark:text-default-300 hover:shadow-md hover:scale-[1.02]`
                   }`}
-                type="button"
-                onClick={() => handleConvert(format)}
-              >
-                <span className="flex items-center justify-center gap-1.5">
-                  <Icon
-                    className={`transition-transform duration-200 group-hover:translate-x-0.5 ${
-                      isActive ? "text-white/90" : inactiveIconColor
-                    }`}
-                    icon="solar:arrow-right-linear"
-                    width={14}
-                  />
-                  {displayText}
-                </span>
-                <span
-                  className={`block text-xs mt-0.5 font-mono transition-colors duration-200 ${
-                    isActive ? "text-white/60" : "text-default-400"
-                  }`}
+                  type="button"
+                  onClick={() => handleConvert(format)}
                 >
-                  {example}
-                </span>
-              </button>
-            );
-          })}
+                  <span className="flex items-center justify-center gap-1.5">
+                    <Icon
+                      className={`transition-transform duration-200 group-hover:translate-x-0.5 ${
+                        isActive ? "text-white/90" : inactiveIconColor
+                      }`}
+                      icon="solar:arrow-right-linear"
+                      width={14}
+                    />
+                    {displayText}
+                  </span>
+                  <span
+                    className={`block text-xs mt-0.5 font-mono transition-colors duration-200 ${
+                      isActive ? "text-white/60" : "text-default-400"
+                    }`}
+                  >
+                    {example}
+                  </span>
+                </button>
+              );
+            },
+          )}
           <button
             className="group w-full rounded-xl px-3 py-2 text-sm font-medium
               bg-transparent border border-default-200 dark:border-default-700

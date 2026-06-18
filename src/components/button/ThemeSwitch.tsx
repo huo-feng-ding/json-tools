@@ -3,9 +3,8 @@ import { VisuallyHidden } from "@react-aria/visually-hidden";
 import { SwitchProps, useSwitch } from "@heroui/switch";
 import clsx from "clsx";
 import { Button, cn } from "@heroui/react";
+import { Icon } from "@iconify/react";
 import { useTheme } from "next-themes";
-
-import { SunFilledIcon, MoonFilledIcon } from "@/components/Icons.tsx";
 
 export interface ThemeSwitchProps {
   className?: string;
@@ -61,8 +60,9 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
             isIconOnly={isCollapsed}
             startContent={
               isCollapsed ? null : (
-                <SunFilledIcon
-                  size={24}
+                <Icon
+                  icon="solar:sun-linear"
+                  width={18}
                   onClick={(e) => {
                     e.preventDefault();
                   }}
@@ -73,8 +73,9 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
             onPress={toggleTheme}
           >
             {isCollapsed ? (
-              <SunFilledIcon
-                size={24}
+              <Icon
+                icon="solar:sun-linear"
+                width={18}
                 onClick={(e) => {
                   e.preventDefault();
                 }}
@@ -95,8 +96,9 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
             isIconOnly={isCollapsed}
             startContent={
               isCollapsed ? null : (
-                <MoonFilledIcon
-                  size={24}
+                <Icon
+                  icon="solar:moon-stars-linear"
+                  width={20}
                   onClick={(e) => {
                     e.preventDefault();
                   }}
@@ -107,8 +109,9 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
             onPress={toggleTheme}
           >
             {isCollapsed ? (
-              <MoonFilledIcon
-                size={24}
+              <Icon
+                icon="solar:moon-stars-linear"
+                width={20}
                 onClick={(e) => {
                   e.preventDefault();
                 }}

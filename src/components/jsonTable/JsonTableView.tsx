@@ -63,16 +63,32 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
 
   // 筛选相关状态
   const [isFilterActive, setIsFilterActive] = useState(false);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>(
+    {},
+  );
   const [globalFilter, setGlobalFilter] = useState("");
 
   // 计算表格模式
-  const tableMode = useMemo<"objectsArray" | "object" | "array" | "primitive">(() => {
-    if (!jsonData || typeof jsonData !== "object" || isLosslessNumber(jsonData)) return "primitive";
+  const tableMode = useMemo<
+    "objectsArray" | "object" | "array" | "primitive"
+  >(() => {
+    if (!jsonData || typeof jsonData !== "object" || isLosslessNumber(jsonData))
+      return "primitive";
     if (Array.isArray(jsonData)) {
-      if (jsonData.length > 0 && jsonData.every((item: any) => typeof item === "object" && item !== null && !isLosslessNumber(item))) return "objectsArray";
+      if (
+        jsonData.length > 0 &&
+        jsonData.every(
+          (item: any) =>
+            typeof item === "object" &&
+            item !== null &&
+            !isLosslessNumber(item),
+        )
+      )
+        return "objectsArray";
+
       return "array";
     }
+
     return "object";
   }, [jsonData]);
 
@@ -144,6 +160,7 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
       if ((e.ctrlKey || e.metaKey) && e.key === "v") {
         // 当焦点在输入框内时，不拦截粘贴事件，避免与筛选搜索框等输入组件冲突
         const activeEl = document.activeElement;
+
         if (
           activeEl &&
           (activeEl.tagName === "INPUT" ||
@@ -348,7 +365,11 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
             size="md"
             startContent={
               isPasting ? (
-                <Icon className="animate-spin" icon="svg-spinners:ring-resize" width={18} />
+                <Icon
+                  className="animate-spin"
+                  icon="svg-spinners:ring-resize"
+                  width={18}
+                />
               ) : (
                 <Icon icon="solar:clipboard-bold" width={18} />
               )
@@ -495,6 +516,7 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
         setColumnFilters({});
         setGlobalFilter("");
       }
+
       return !prev;
     });
   }, []);
@@ -503,11 +525,13 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
     (columnKey: string, selectedValues: Set<string>) => {
       setColumnFilters((prev) => {
         const next = { ...prev };
+
         if (!selectedValues || selectedValues.size === 0) {
           delete next[columnKey];
         } else {
           next[columnKey] = Array.from(selectedValues);
         }
+
         return next;
       });
     },
@@ -560,17 +584,17 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
 
     return (
       <JsonTable
+        columnFilters={isFilterActive ? columnFilters : undefined}
         data={jsonData}
         expandedPaths={expandedPaths}
+        globalFilter={isFilterActive ? globalFilter : undefined}
         hideEmpty={hideEmpty}
         hideNull={hideNull}
         onCollapseAll={handleCollapseAll}
+        onColumnFilterChange={handleColumnFilterChange}
         onExpandAll={handleExpandAll}
         onPathChange={handlePathSelection}
         onToggleExpand={handleToggleExpand}
-        columnFilters={isFilterActive ? columnFilters : undefined}
-        globalFilter={isFilterActive ? globalFilter : undefined}
-        onColumnFilterChange={handleColumnFilterChange}
       />
     );
   }, [
@@ -826,16 +850,16 @@ const JsonTableView: React.FC<JsonTableViewProps> = ({
     >
       <JsonTableOperationBar
         ref={operationBarRef}
+        globalFilterValue={globalFilter}
+        isFilterActive={isFilterActive}
+        tableMode={tableMode}
         onClear={handleClear}
         onCollapse={handleCollapseAll}
         onCopy={onCopy}
         onCustomView={handleCustomView}
         onExpand={handleExpandAll}
         onFilterToggle={handleFilterToggle}
-        isFilterActive={isFilterActive}
-        globalFilterValue={globalFilter}
         onGlobalFilterChange={handleGlobalFilterChange}
-        tableMode={tableMode}
       />
       <div className="flex-grow overflow-hidden border border-default-200 bg-white dark:bg-vscode-dark">
         {currentContent}

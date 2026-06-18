@@ -21,6 +21,7 @@ export class DisposableStore {
    */
   add<T extends IDisposable>(disposable: T): T {
     this.disposables.push(disposable);
+
     return disposable;
   }
 

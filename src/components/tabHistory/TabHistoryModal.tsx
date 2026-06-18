@@ -1,6 +1,17 @@
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Chip, Textarea, Divider } from "@heroui/react";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Chip,
+  Textarea,
+  Divider,
+} from "@heroui/react";
 import { useState } from "react";
 import { Icon } from "@iconify/react";
+
 import { TabHistoryItem } from "@/store/useTabStore";
 import { formatDate } from "@/utils/date";
 
@@ -23,7 +34,9 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
   onDelete,
   onClear,
 }) => {
-  const [selectedHistory, setSelectedHistory] = useState<TabHistoryItem | null>(null);
+  const [selectedHistory, setSelectedHistory] = useState<TabHistoryItem | null>(
+    null,
+  );
   const [previewMode, setPreviewMode] = useState(false);
 
   const handleSelectHistory = (item: TabHistoryItem) => {
@@ -64,9 +77,9 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={handleClose}
-      size={previewMode ? "5xl" : "2xl"}
       scrollBehavior="inside"
+      size={previewMode ? "5xl" : "2xl"}
+      onClose={handleClose}
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
@@ -75,13 +88,13 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
               {previewMode ? "预览历史记录" : "历史记录"}
             </h3>
             <Chip
-              size="sm"
-              variant="flat"
               className="text-default-500"
               classNames={{
                 base: "h-5 px-2",
-                content: "text-tiny font-medium"
+                content: "text-tiny font-medium",
               }}
+              size="sm"
+              variant="flat"
             >
               {historyItems.length}
             </Chip>
@@ -97,7 +110,7 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
                     <span className="text-small font-semibold text-default-700">
                       版本 #{selectedHistory.monacoVersion}
                     </span>
-                    <Chip size="sm" variant="flat" className="h-5 px-1.5">
+                    <Chip className="h-5 px-1.5" size="sm" variant="flat">
                       <span className="text-tiny text-default-500">
                         {formatDate(selectedHistory.timestamp)}
                       </span>
@@ -114,14 +127,14 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
                   <span className="text-small font-medium">当前内容</span>
                 </div>
                 <Textarea
-                  value={currentContent}
                   readOnly
                   className="flex-1"
-                  minRows={5}
-                  maxRows={10}
                   classNames={{
                     input: "text-small",
                   }}
+                  maxRows={10}
+                  minRows={5}
+                  value={currentContent}
                 />
 
                 <div className="flex items-center gap-2 mt-2">
@@ -130,14 +143,14 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
                   </span>
                 </div>
                 <Textarea
-                  value={selectedHistory.content}
                   readOnly
                   className="flex-1"
-                  minRows={5}
-                  maxRows={10}
                   classNames={{
                     input: "text-small",
                   }}
+                  maxRows={10}
+                  minRows={5}
+                  value={selectedHistory.content}
                 />
               </div>
             </div>
@@ -169,11 +182,11 @@ const TabHistoryModal: React.FC<TabHistoryModalProps> = ({
                       </div>
                       <Button
                         isIconOnly
-                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
                         color="danger"
+                        size="sm"
                         variant="light"
                         onClick={(e) => handleDelete(item.key, e)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Icon icon="solar:trash-bin-trash-linear" width={16} />
                       </Button>

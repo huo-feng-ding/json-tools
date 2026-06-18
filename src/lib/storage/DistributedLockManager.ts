@@ -3,14 +3,18 @@
  * 防止多窗口同时写入导致的数据冲突
  */
 
-import localforage from 'localforage';
-import { Lock } from './types';
-import { MultiWindowSyncManager, getSyncManager } from './MultiWindowSyncManager';
+import localforage from "localforage";
+
+import { Lock } from "./types";
+import {
+  MultiWindowSyncManager,
+  getSyncManager,
+} from "./MultiWindowSyncManager";
 
 // 锁存储实例
 const lockStorage = localforage.createInstance({
-  name: 'json-tools',
-  storeName: 'locks',
+  name: "json-tools",
+  storeName: "locks",
 });
 
 const DEFAULT_LOCK_TTL = 5000; // 默认锁超时时间（毫秒）
@@ -37,7 +41,10 @@ export class DistributedLockManager {
   /**
    * 获取锁
    */
-  async acquire(lockId: string, timeout: number = DEFAULT_LOCK_TTL): Promise<void> {
+  async acquire(
+    lockId: string,
+    timeout: number = DEFAULT_LOCK_TTL,
+  ): Promise<void> {
     const startTime = Date.now();
 
     while (Date.now() - startTime < timeout) {
@@ -60,6 +67,7 @@ export class DistributedLockManager {
         this.syncManager.broadcastLockRequest(lockId);
 
         console.log(`成功获取锁: ${lockId}`);
+
         return;
       }
 
@@ -67,11 +75,12 @@ export class DistributedLockManager {
       if (existingLock.windowId === this.windowId) {
         console.log(`锁已被当前窗口持有: ${lockId}`);
         this.heldLocks.add(lockId);
+
         return;
       }
 
       // 等待后重试
-      await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_DELAY));
+      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY));
     }
 
     throw new Error(`获取锁超时: ${lockId}`);
@@ -114,6 +123,7 @@ export class DistributedLockManager {
   async isLocked(lockId: string): Promise<boolean> {
     try {
       const lock = await lockStorage.getItem<Lock>(lockId);
+
       if (!lock) {
         return false;
       }
@@ -121,12 +131,14 @@ export class DistributedLockManager {
       // 检查是否过期
       if (this.isExpired(lock)) {
         await lockStorage.removeItem(lockId);
+
         return false;
       }
 
       return true;
     } catch (error) {
       console.error(`检查锁状态失败: ${lockId}`, error);
+
       return false;
     }
   }
@@ -156,7 +168,10 @@ export class DistributedLockManager {
    * 释放所有由当前窗口持有的锁
    */
   async releaseAll(): Promise<void> {
-    const promises = Array.from(this.heldLocks).map(lockId => this.release(lockId));
+    const promises = Array.from(this.heldLocks).map((lockId) =>
+      this.release(lockId),
+    );
+
     await Promise.all(promises);
   }
 
@@ -170,6 +185,7 @@ export class DistributedLockManager {
 
       for (const key of keys) {
         const lock = await lockStorage.getItem<Lock>(key);
+
         if (lock && this.isExpired(lock)) {
           await lockStorage.removeItem(key);
           cleanedCount++;
@@ -180,7 +196,7 @@ export class DistributedLockManager {
         console.log(`清理了 ${cleanedCount} 个过期锁`);
       }
     } catch (error) {
-      console.error('清理过期锁失败:', error);
+      console.error("清理过期锁失败:", error);
     }
   }
 }
@@ -191,7 +207,9 @@ let globalLockManager: DistributedLockManager | null = null;
 export function getLockManager(): DistributedLockManager {
   if (!globalLockManager) {
     const syncManager = getSyncManager();
+
     globalLockManager = new DistributedLockManager(syncManager);
   }
+
   return globalLockManager;
 }

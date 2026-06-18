@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import { Icon } from "@iconify/react";
 import { isLosslessNumber } from "lossless-json";
 
@@ -54,6 +60,7 @@ function toDisplayString(value: any): string {
       return String(value);
     }
   }
+
   return String(value);
 }
 
@@ -113,6 +120,7 @@ const JsonTable: React.FC<JsonTableProps> = ({
 
     keys.forEach((key) => {
       const values = new Set<string>();
+
       data.forEach((item: any) => values.add(toDisplayString(item[key])));
       uniqueValues[key] = Array.from(values).sort();
     });
@@ -129,6 +137,7 @@ const JsonTable: React.FC<JsonTableProps> = ({
       return Object.entries(columnFilters).every(([key, allowedValues]) => {
         if (!allowedValues || allowedValues.length === 0) return true;
         const cellValue = toDisplayString(item[key]);
+
         return allowedValues.includes(cellValue);
       });
     });
@@ -415,6 +424,7 @@ const JsonTable: React.FC<JsonTableProps> = ({
     // 全局搜索过滤
     if (globalFilter) {
       const searchLower = globalFilter.toLowerCase();
+
       entries = entries.filter(([key, value]) => {
         return (
           key.toLowerCase().includes(searchLower) ||
@@ -483,8 +493,10 @@ const JsonTable: React.FC<JsonTableProps> = ({
   ) => {
     // 全局搜索过滤
     let filteredItems = data;
+
     if (globalFilter) {
       const searchLower = globalFilter.toLowerCase();
+
       filteredItems = data.filter((item, index) => {
         return (
           String(index).includes(searchLower) ||
@@ -504,6 +516,7 @@ const JsonTable: React.FC<JsonTableProps> = ({
               const originalIndex = globalFilter
                 ? data.indexOf(item)
                 : filteredIndex;
+
               if ((hideEmpty && item === "") || (hideNull && item === null)) {
                 return null;
               }
@@ -564,11 +577,14 @@ const JsonTable: React.FC<JsonTableProps> = ({
     const uniqueValues = isNested
       ? (() => {
           const uv: Record<string, string[]> = {};
+
           keys.forEach((key) => {
             const values = new Set<string>();
+
             data.forEach((item: any) => values.add(toDisplayString(item[key])));
             uv[key] = Array.from(values).sort();
           });
+
           return uv;
         })()
       : columnUniqueValues;
@@ -608,19 +624,21 @@ const JsonTable: React.FC<JsonTableProps> = ({
                   >
                     <div className="flex items-center gap-1">
                       <span>{key}</span>
-                      {!isNested && onColumnFilterChange && uniqueValues[key] && (
-                        <ColumnFilterPopover
-                          columnKey={key}
-                          allValues={uniqueValues[key]}
-                          selectedValues={
-                            columnFilters?.[key]
-                              ? new Set(columnFilters[key])
-                              : new Set(uniqueValues[key])
-                          }
-                          isActive={!!hasFilter}
-                          onFilterChange={onColumnFilterChange}
-                        />
-                      )}
+                      {!isNested &&
+                        onColumnFilterChange &&
+                        uniqueValues[key] && (
+                          <ColumnFilterPopover
+                            allValues={uniqueValues[key]}
+                            columnKey={key}
+                            isActive={!!hasFilter}
+                            selectedValues={
+                              columnFilters?.[key]
+                                ? new Set(columnFilters[key])
+                                : new Set(uniqueValues[key])
+                            }
+                            onFilterChange={onColumnFilterChange}
+                          />
+                        )}
                     </div>
                   </th>
                 );
@@ -634,7 +652,9 @@ const JsonTable: React.FC<JsonTableProps> = ({
               }
 
               // 筛选后映射回原索引
-              const originalIndex = Array.isArray(data) ? data.indexOf(item) : index;
+              const originalIndex = Array.isArray(data)
+                ? data.indexOf(item)
+                : index;
               const itemPath = `${path}[${originalIndex}]`;
               const isSelected = isPathSelected(itemPath);
 

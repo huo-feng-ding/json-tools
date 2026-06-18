@@ -4,9 +4,14 @@ import { devtools, subscribeWithSelector } from "zustand/middleware";
 import { Content, Mode, JSONContent, TextContent } from "vanilla-jsoneditor";
 
 import { useSettingsStore } from "./useSettingsStore";
+import type { Tool } from "./useToolboxStore";
 
 import { StorageManager } from "@/lib/storage/StorageManager";
 import { getSyncManager } from "@/lib/storage/MultiWindowSyncManager";
+import {
+  getHistoryContentHash,
+  isHistoryContentTooLarge,
+} from "@/components/monacoEditor/editorPerformance";
 import { parseJson, stringifyJson, convertLosslessToNative } from "@/utils/json";
 import { generateUUID } from "@/utils/uuid";
 
@@ -20,6 +25,17 @@ export interface TabHistoryItem {
   content: string; // 内容快照
   monacoVersion: number; // 版本号
   vanilla?: Content; // vanilla 内容快照（可选）
+  truncated?: boolean; // 内容过大时不保存完整快照
+  contentLength?: number; // 原始内容长度
+  contentHash?: string; // 截断内容的轻量指纹，用于去重
+}
+
+export type TabKind = "json" | "toolbox" | "tool";
+
+export interface ToolTabExtraData extends Record<string, any> {
+  toolId: string;
+  toolIcon: string;
+  toolPath: string;
 }
 
 // 存储管理器实例 - 使用共享的 syncManager
@@ -27,6 +43,7 @@ const syncManager = getSyncManager();
 const storageManager = new StorageManager(syncManager);
 
 export interface TabItem {
+  kind: TabKind;
   key: string;
   uuid: string; // Tab 的唯一标识符
   title: string;
@@ -63,6 +80,8 @@ interface TabStore {
     content: string | undefined,
     extraData?: Record<string, any>,
   ) => void;
+  openToolboxTab: () => string;
+  addToolTab: (tool: Tool) => string;
   setTabContent: (key: string, content: string) => void;
   updateTabContent: (key: string, content: string) => void;
   setTabModifiedValue: (key: string, content: string) => void;
@@ -117,6 +136,7 @@ export const useTabStore = create<TabStore>()(
             const newTabKey = `${state.nextKey}`;
             const uuid = generateUUID();
             const newTab: TabItem = {
+              kind: "json",
               key: `${state.nextKey}`,
               uuid,
               title: title ? title : `New Tab ${newTabKey}`,
@@ -149,6 +169,7 @@ export const useTabStore = create<TabStore>()(
           set((state) => {
             const settings = useSettingsStore.getState();
             const defaultTab = {
+              kind: "json" as const,
               key: "1",
               uuid: generateUUID(),
               title: "New Tab 1",
@@ -176,6 +197,93 @@ export const useTabStore = create<TabStore>()(
               tabs,
             };
           });
+        },
+        openToolboxTab: () => {
+          const existingTab = get().tabs.find((tab) => tab.kind === "toolbox");
+
+          if (existingTab) {
+            set({ activeTabKey: existingTab.key });
+
+            return existingTab.key;
+          }
+
+          const newTabKey = `${get().nextKey}`;
+
+          set((state) => {
+            const settings = useSettingsStore.getState();
+            const toolboxTab: TabItem = {
+              kind: "toolbox",
+              key: newTabKey,
+              uuid: generateUUID(),
+              title: "工具箱",
+              content: "",
+              vanillaMode: Mode.tree,
+              closable: true,
+              vanillaVersion: 0,
+              monacoVersion: 0,
+              history: [],
+              editorSettings: {
+                fontSize: 14,
+                language: "json",
+                indentSize: settings.defaultIndentSize,
+                timestampDecoratorsEnabled: true,
+                base64DecoratorsEnabled: true,
+                unicodeDecoratorsEnabled: true,
+                urlDecoratorsEnabled: true,
+                imageDecoratorsEnabled: true,
+              },
+            };
+
+            return {
+              tabs: [...state.tabs, toolboxTab],
+              activeTabKey: newTabKey,
+              nextKey: state.nextKey + 1,
+            };
+          });
+
+          return newTabKey;
+        },
+        addToolTab: (tool: Tool) => {
+          const newTabKey = `${get().nextKey}`;
+
+          set((state) => {
+            const settings = useSettingsStore.getState();
+            const toolTab: TabItem = {
+              kind: "tool",
+              key: newTabKey,
+              uuid: generateUUID(),
+              title: tool.name,
+              content: "",
+              vanillaMode: Mode.tree,
+              closable: true,
+              vanillaVersion: 0,
+              monacoVersion: 0,
+              history: [],
+              extraData: {
+                toolId: tool.id,
+                toolIcon: tool.icon,
+                toolPath: tool.path,
+              } satisfies ToolTabExtraData,
+              editorSettings: {
+                fontSize: 14,
+                language: "json",
+                indentSize: settings.defaultIndentSize,
+                timestampDecoratorsEnabled: true,
+                base64DecoratorsEnabled: true,
+                unicodeDecoratorsEnabled: true,
+                urlDecoratorsEnabled: true,
+                imageDecoratorsEnabled: true,
+              },
+            };
+
+            return {
+              tabs: [...state.tabs, toolTab],
+              activeTabKey: newTabKey,
+              nextKey: state.nextKey + 1,
+            };
+          });
+
+          return newTabKey;
         },
         setMonacoVersion: (key: string, version: number) =>
           set((state) => {
@@ -301,7 +409,7 @@ export const useTabStore = create<TabStore>()(
           const data: Record<string, any> = {};
 
           if (tabs) {
-            data.tabs = tabs;
+            data.tabs = tabs.map(normalizePersistedTab);
           } else {
             get().initTab();
           }
@@ -421,6 +529,7 @@ export const useTabStore = create<TabStore>()(
           set(() => {
             const settings = useSettingsStore.getState();
             const defaultTab = {
+              kind: "json" as const,
               key: "1",
               uuid: generateUUID(),
               title: "New Tab 1",
@@ -607,6 +716,19 @@ export const useTabStore = create<TabStore>()(
             return {
               tabs: state.tabs.map((t) => {
                 if (t.key === tabKey) {
+                  if (historyItem.truncated) {
+                    console.warn('[历史记录] 历史内容过大，跳过内容恢复:', {
+                      tabKey,
+                      historyKey,
+                      contentLength: historyItem.contentLength,
+                    });
+
+                    return {
+                      ...t,
+                      title: historyItem.title,
+                    };
+                  }
+
                   // 保持当前版本号，只恢复内容，避免版本号回退导致问题
                   return {
                     ...t,
@@ -672,6 +794,11 @@ const DB_TABS = "tabs";
 const DB_TAB_ACTIVE_KEY = "tabs_active_key";
 const DB_TAB_NEXT_KEY = "tabs_next_key";
 
+const normalizePersistedTab = (tab: TabItem): TabItem => ({
+  ...tab,
+  kind: tab.kind || "json",
+});
+
 let tabsSaveTimeout: NodeJS.Timeout;
 let tabActiveSaveTimeout: NodeJS.Timeout;
 const timeout = 2000;
@@ -701,8 +828,18 @@ const recordTabHistory = (tab: TabItem) => {
 
     // 检查最新历史记录，避免重复
     const latestHistory = currentTab.history[0];
+    const contentLength = currentTab.content.length;
+    const truncated = isHistoryContentTooLarge(currentTab.content);
+    const contentHash = truncated
+      ? getHistoryContentHash(currentTab.content)
+      : undefined;
+
     if (latestHistory) {
-      const contentChanged = latestHistory.content !== currentTab.content;
+      const contentChanged =
+        truncated || latestHistory.truncated
+          ? latestHistory.contentLength !== contentLength ||
+            latestHistory.contentHash !== contentHash
+          : latestHistory.content !== currentTab.content;
       const titleChanged = latestHistory.title !== currentTab.title;
 
       // 如果内容和标题都没变化，不记录
@@ -721,9 +858,14 @@ const recordTabHistory = (tab: TabItem) => {
       key: `history_${timestamp}_${randomSuffix}_${currentTab.uuid}`,
       timestamp: timestamp,
       title: currentTab.title,
-      content: currentTab.content,
+      content: truncated
+        ? `[历史内容过大，已跳过完整快照，原始长度 ${contentLength} 字符]`
+        : currentTab.content,
       monacoVersion: currentTab.monacoVersion,
-      vanilla: currentTab.vanilla,
+      vanilla: truncated ? undefined : currentTab.vanilla,
+      truncated,
+      contentLength,
+      contentHash,
     };
 
     // 更新 tab 的历史记录

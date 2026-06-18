@@ -11,6 +11,10 @@ node_modules
 dist
 dist-ssr
 *.local
+.superpowers/
+
+# Superpowers 生成的工作笔记 / 规格文档（非项目源码）
+docs/
 
 # Editor directories and files
 .vscode/*

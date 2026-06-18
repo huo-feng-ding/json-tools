@@ -19,10 +19,7 @@ interface ColumnFilterPopoverProps {
   /** 是否有活跃筛选（用于图标高亮） */
   isActive: boolean;
   /** 筛选变化回调 */
-  onFilterChange: (
-    columnKey: string,
-    selectedValues: Set<string>,
-  ) => void;
+  onFilterChange: (columnKey: string, selectedValues: Set<string>) => void;
 }
 
 /** 去重列表最大显示数量 */
@@ -56,6 +53,7 @@ const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
           v.toLowerCase().includes(searchText.toLowerCase()),
         )
       : allValues;
+
     return values.slice(0, MAX_VISIBLE_ITEMS);
   }, [allValues, searchText]);
 
@@ -75,11 +73,13 @@ const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
   const handleToggleItem = (value: string) => {
     setTempSelected((prev) => {
       const next = new Set(prev);
+
       if (next.has(value)) {
         next.delete(value);
       } else {
         next.add(value);
       }
+
       return next;
     });
   };
@@ -102,12 +102,12 @@ const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
 
   return (
     <Popover
-      isOpen={isOpen}
-      onOpenChange={setIsOpen}
-      placement="bottom"
       classNames={{
         content: "p-0",
       }}
+      isOpen={isOpen}
+      placement="bottom"
+      onOpenChange={setIsOpen}
     >
       <PopoverTrigger>
         <button
@@ -128,27 +128,27 @@ const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
         <div className="w-56 p-2">
           {/* 搜索框 */}
           <Input
-            size="sm"
-            placeholder="搜索..."
-            value={searchText}
-            onValueChange={setSearchText}
+            isClearable
             className="mb-2"
+            placeholder="搜索..."
+            size="sm"
             startContent={
               <Icon
+                className="text-default-400"
                 icon="mdi:magnify"
                 width={16}
-                className="text-default-400"
               />
             }
-            isClearable
+            value={searchText}
+            onValueChange={setSearchText}
           />
 
           {/* 全选/取消全选 */}
           <div className="flex items-center gap-2 mb-1 px-1">
             <Checkbox
-              size="sm"
-              isSelected={isAllSelected}
               isIndeterminate={isIndeterminate}
+              isSelected={isAllSelected}
+              size="sm"
               onValueChange={handleToggleAll}
             >
               <span className="text-xs text-default-500">
@@ -165,8 +165,8 @@ const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
                 className="flex items-center gap-2 px-1 py-0.5 hover:bg-default-50 rounded-sm"
               >
                 <Checkbox
-                  size="sm"
                   isSelected={tempSelected.has(value)}
+                  size="sm"
                   onValueChange={() => handleToggleItem(value)}
                 >
                   <span
@@ -188,17 +188,17 @@ const ColumnFilterPopover: React.FC<ColumnFilterPopoverProps> = ({
           {/* 操作按钮 */}
           <div className="flex items-center justify-between mt-2">
             <Button
+              className="text-xs h-7"
               size="sm"
               variant="light"
-              className="text-xs h-7"
               onPress={handleReset}
             >
               重置
             </Button>
             <Button
-              size="sm"
-              color="primary"
               className="text-xs h-7"
+              color="primary"
+              size="sm"
               onPress={handleConfirm}
             >
               确定

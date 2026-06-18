@@ -50,6 +50,42 @@ const getThemeStyles = (theme?: string) => {
 let isImageDecorationEnabled = true; // 下划线装饰器全局启用状态
 let isImageProviderEnabled = false; // 全局图片悬停提供者启用状态（已禁用）
 
+interface ImageHoverData {
+  url: string;
+  theme: string;
+}
+
+const imageHoverData = new WeakMap<Element, ImageHoverData>();
+const imageHoverBound = new WeakSet<Element>();
+
+const handleImageButtonMouseEnter = (e: Event) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const buttonElement = e.currentTarget;
+
+  if (!(buttonElement instanceof Element)) {
+    return;
+  }
+
+  const data = imageHoverData.get(buttonElement);
+
+  if (!data) {
+    return;
+  }
+
+  const rect = buttonElement.getBoundingClientRect();
+
+  ImagePreviewManager.getInstance().showImagePreview(
+    data.url,
+    {
+      x: rect.right,
+      y: rect.top,
+    },
+    data.theme,
+  );
+};
+
 // 图片预览弹窗管理器
 class ImagePreviewManager {
   private static instance: ImagePreviewManager;
@@ -650,20 +686,18 @@ export const updateImageDecorations = (
             );
 
             if (buttonElement) {
-              buttonElement.addEventListener("mouseenter", (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const rect = buttonElement.getBoundingClientRect();
-
-                ImagePreviewManager.getInstance().showImagePreview(
-                  urlInfo.url,
-                  {
-                    x: rect.right,
-                    y: rect.top,
-                  },
-                  state.theme,
-                );
+              imageHoverData.set(buttonElement, {
+                url: urlInfo.url,
+                theme: state.theme,
               });
+
+              if (!imageHoverBound.has(buttonElement)) {
+                buttonElement.addEventListener(
+                  "mouseenter",
+                  handleImageButtonMouseEnter,
+                );
+                imageHoverBound.add(buttonElement);
+              }
             }
           });
         }, 300);

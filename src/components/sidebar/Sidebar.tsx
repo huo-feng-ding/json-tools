@@ -100,6 +100,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 {
                   "inline-block w-8": isCompact && isNestType,
                 },
+                item.className,
               ),
             }}
             endContent={
@@ -115,7 +116,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                     iconClassName,
                   )}
                   icon={item.icon}
-                  width={24}
+                  width={20}
                 />
               ) : (
                 (item.startContent ?? null)
@@ -162,7 +163,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                             iconClassName,
                           )}
                           icon={item.icon}
-                          width={24}
+                          width={20}
                         />
                         <span className="text-small font-medium text-default-500 group-data-[selected=true]:text-foreground">
                           {item.title}
@@ -211,6 +212,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           <ListboxItem
             {...item}
             key={item.key}
+            classNames={{
+              base: item.className,
+            }}
             endContent={
               isCompact || hideEndContent ? null : (item.endContent ?? null)
             }
@@ -274,8 +278,10 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           ...itemClasses,
           base: cn(
             {
-              "px-3 min-h-10 h-10 rounded-large data-[selected=true]:bg-default-100 mb-2": !isCompact,
-              "min-h-8 h-8 rounded-large data-[selected=true]:bg-default-100 mb-2": isCompact,
+              "px-3 min-h-10 h-10 rounded-large data-[selected=true]:bg-default-100 mb-2":
+                !isCompact,
+              "min-h-8 h-8 rounded-large data-[selected=true]:bg-default-100 mb-2":
+                isCompact,
             },
             itemClasses?.base,
           ),

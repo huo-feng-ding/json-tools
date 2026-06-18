@@ -59,6 +59,11 @@ import {
 import { DecorationManager } from "@/components/monacoEditor/decorations/decorationManager.ts";
 import { DisposableStore } from "@/components/monacoEditor/monacoDisposables.ts";
 import { ensureProvidersRegistered } from "@/components/monacoEditor/decorations/decorationInit.ts";
+import {
+  getEditorWorkload,
+  scheduleInlineDecorationUpdate,
+  shouldRunInlineDecorations,
+} from "@/components/monacoEditor/editorPerformance";
 
 import "@/styles/monaco.css";
 import { Json5LanguageDef } from "@/components/monacoEditor/MonacoLanguageDef.tsx";
@@ -287,6 +292,10 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
     null,
   );
   const modifiedImageCacheRef = useRef<Record<string, boolean>>({});
+  const originalInlineDecorationUpdateTimeoutRef =
+    useRef<NodeJS.Timeout | null>(null);
+  const modifiedInlineDecorationUpdateTimeoutRef =
+    useRef<NodeJS.Timeout | null>(null);
 
   // 图片装饰器启用状态
   const [imageDecoratorsEnabled, setImageDecoratorsEnabled] = useState(
@@ -867,6 +876,88 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
     };
   }, [isDragging, showAiResponse]);
 
+  const runInlineDecorationRefresh = (
+    targetEditor: editor.IStandaloneCodeEditor | null,
+    editorType: "original" | "modified",
+  ) => {
+    if (!targetEditor) {
+      return;
+    }
+
+    const workload = getEditorWorkload(targetEditor.getModel());
+
+    if (!shouldRunInlineDecorations(workload)) {
+      clearEditorDecorators(targetEditor, editorType);
+
+      return;
+    }
+
+    if (editorType === "original") {
+      if (timestampDecoratorsEnabled) {
+        updateTimestampDecorations(
+          targetEditor,
+          originalTimestampDecoratorState,
+        );
+      }
+      if (base64DecoratorsEnabled) {
+        updateBase64Decorations(targetEditor, originalBase64DecoratorState);
+      }
+      if (unicodeDecoratorsEnabled) {
+        updateUnicodeDecorations(targetEditor, originalUnicodeDecoratorState);
+      }
+      if (urlDecoratorsEnabled) {
+        updateUrlDecorations(targetEditor, originalUrlDecoratorState);
+      }
+      if (imageDecoratorsEnabled) {
+        updateImageDecorations(targetEditor, originalImageDecoratorState);
+      }
+
+      return;
+    }
+
+    if (timestampDecoratorsEnabled) {
+      updateTimestampDecorations(targetEditor, modifiedTimestampDecoratorState);
+    }
+    if (base64DecoratorsEnabled) {
+      updateBase64Decorations(targetEditor, modifiedBase64DecoratorState);
+    }
+    if (unicodeDecoratorsEnabled) {
+      updateUnicodeDecorations(targetEditor, modifiedUnicodeDecoratorState);
+    }
+    if (urlDecoratorsEnabled) {
+      updateUrlDecorations(targetEditor, modifiedUrlDecoratorState);
+    }
+    if (imageDecoratorsEnabled) {
+      updateImageDecorations(targetEditor, modifiedImageDecoratorState);
+    }
+  };
+
+  const scheduleEditorInlineDecorationRefresh = (
+    targetEditor: editor.IStandaloneCodeEditor | null,
+    editorType: "original" | "modified",
+    delay = 200,
+  ) => {
+    if (!targetEditor) {
+      return;
+    }
+
+    const workload = getEditorWorkload(targetEditor.getModel());
+
+    if (!shouldRunInlineDecorations(workload)) {
+      clearEditorDecorators(targetEditor, editorType);
+    }
+
+    scheduleInlineDecorationUpdate({
+      timeoutRef:
+        editorType === "original"
+          ? originalInlineDecorationUpdateTimeoutRef
+          : modifiedInlineDecorationUpdateTimeoutRef,
+      workload,
+      delay,
+      run: () => runInlineDecorationRefresh(targetEditor, editorType),
+    });
+  };
+
   // 创建差异编辑器实例
   async function createDiffEditor() {
     loader.config({ monaco });
@@ -947,242 +1038,134 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
         // 监听原始编辑器内容变化
         disposableStore.current.add(
           originalEditorRef.current.onDidChangeModelContent((e) => {
-          const originalText = originalEditorRef.current!.getValue();
+            const originalText = originalEditorRef.current!.getValue();
 
-          onUpdateOriginalValue(originalText);
+            onUpdateOriginalValue(originalText);
 
-          // 更新编辑器内容状态
-          if (modifiedEditorRef.current) {
-            const modifiedText = modifiedEditorRef.current.getValue() || "";
+            // 更新编辑器内容状态
+            if (modifiedEditorRef.current) {
+              const modifiedText = modifiedEditorRef.current.getValue() || "";
 
-            setEditorContent(
-              `原始内容:\n${originalText}\n\n修改后内容:\n${modifiedText}`,
+              setEditorContent(
+                `原始内容:\n${originalText}\n\n修改后内容:\n${modifiedText}`,
+              );
+            }
+
+            // 根据行数控制装饰器
+            const lineCount = getEditorLineCount(originalEditorRef.current);
+            const workload = getEditorWorkload(
+              originalEditorRef.current?.getModel(),
             );
-          }
 
-          // 根据行数控制装饰器
-          const lineCount = getEditorLineCount(originalEditorRef.current);
+            if (lineCount < 3 || !shouldRunInlineDecorations(workload)) {
+              // 小于3行时，清空原始编辑器的所有装饰器
+              clearEditorDecorators(originalEditorRef.current, "original");
+            } else {
+              // 更新时间戳装饰器
+              if (timestampDecoratorsEnabled) {
+                handleTimestampContentChange(
+                  e,
+                  originalTimestampDecoratorState,
+                );
+              }
 
-          if (lineCount < 3) {
-            // 小于3行时，清空原始编辑器的所有装饰器
-            clearEditorDecorators(originalEditorRef.current, "original");
-          } else {
-            // 更新时间戳装饰器
-            if (timestampDecoratorsEnabled) {
-              handleTimestampContentChange(e, originalTimestampDecoratorState);
+              // 更新Base64下划线装饰器
+              if (base64DecoratorsEnabled) {
+                handleBase64ContentChange(e, originalBase64DecoratorState);
+              }
+
+              // Unicode下划线装饰器
+              if (unicodeDecoratorsEnabled) {
+                handleUnicodeContentChange(e, originalUnicodeDecoratorState);
+              }
+
+              // URL下划线装饰器
+              if (urlDecoratorsEnabled) {
+                handleUrlContentChange(e, originalUrlDecoratorState);
+              }
+
+              // 图片装饰器
+              if (imageDecoratorsEnabled) {
+                handleImageContentChange(e, originalImageDecoratorState);
+              }
             }
-
-            // 更新Base64下划线装饰器
-            if (base64DecoratorsEnabled) {
-              handleBase64ContentChange(e, originalBase64DecoratorState);
-            }
-
-            // Unicode下划线装饰器
-            if (unicodeDecoratorsEnabled) {
-              handleUnicodeContentChange(e, originalUnicodeDecoratorState);
-            }
-
-            // URL下划线装饰器
-            if (urlDecoratorsEnabled) {
-              handleUrlContentChange(e, originalUrlDecoratorState);
-            }
-
-            // 图片装饰器
-            if (imageDecoratorsEnabled) {
-              handleImageContentChange(e, originalImageDecoratorState);
-            }
-          }
-        }),
+          }),
         );
 
         // 监听修改编辑器内容变化
         disposableStore.current.add(
           modifiedEditorRef.current.onDidChangeModelContent((e) => {
-          const modifiedText = modifiedEditorRef.current!.getValue();
+            const modifiedText = modifiedEditorRef.current!.getValue();
 
-          onUpdateModifiedValue && onUpdateModifiedValue(modifiedText);
+            onUpdateModifiedValue && onUpdateModifiedValue(modifiedText);
 
-          // 更新编辑器内容状态
-          if (originalEditorRef.current) {
-            const originalText = originalEditorRef.current.getValue() || "";
+            // 更新编辑器内容状态
+            if (originalEditorRef.current) {
+              const originalText = originalEditorRef.current.getValue() || "";
 
-            setEditorContent(
-              `原始内容:\n${originalText}\n\n修改后内容:\n${modifiedText}`,
+              setEditorContent(
+                `原始内容:\n${originalText}\n\n修改后内容:\n${modifiedText}`,
+              );
+            }
+
+            // 根据行数控制装饰器
+            const lineCount = getEditorLineCount(modifiedEditorRef.current);
+            const workload = getEditorWorkload(
+              modifiedEditorRef.current?.getModel(),
             );
-          }
 
-          // 根据行数控制装饰器
-          const lineCount = getEditorLineCount(modifiedEditorRef.current);
+            if (lineCount < 3 || !shouldRunInlineDecorations(workload)) {
+              // 小于3行时，清空修改编辑器的所有装饰器
+              clearEditorDecorators(modifiedEditorRef.current, "modified");
+            } else {
+              // 更新时间戳装饰器
+              if (timestampDecoratorsEnabled) {
+                handleTimestampContentChange(
+                  e,
+                  modifiedTimestampDecoratorState,
+                );
+              }
 
-          if (lineCount < 3) {
-            // 小于3行时，清空修改编辑器的所有装饰器
-            clearEditorDecorators(modifiedEditorRef.current, "modified");
-          } else {
-            // 更新时间戳装饰器
-            if (timestampDecoratorsEnabled) {
-              handleTimestampContentChange(e, modifiedTimestampDecoratorState);
+              // 更新Base64下划线装饰器
+              if (base64DecoratorsEnabled) {
+                handleBase64ContentChange(e, modifiedBase64DecoratorState);
+              }
+
+              // Unicode下划线装饰器
+              if (unicodeDecoratorsEnabled) {
+                handleUnicodeContentChange(e, modifiedUnicodeDecoratorState);
+              }
+
+              // URL下划线装饰器
+              if (urlDecoratorsEnabled) {
+                handleUrlContentChange(e, modifiedUrlDecoratorState);
+              }
+
+              // 图片装饰器
+              if (imageDecoratorsEnabled) {
+                handleImageContentChange(e, modifiedImageDecoratorState);
+              }
             }
-
-            // 更新Base64下划线装饰器
-            if (base64DecoratorsEnabled) {
-              handleBase64ContentChange(e, modifiedBase64DecoratorState);
-            }
-
-            // Unicode下划线装饰器
-            if (unicodeDecoratorsEnabled) {
-              handleUnicodeContentChange(e, modifiedUnicodeDecoratorState);
-            }
-
-            // URL下划线装饰器
-            if (urlDecoratorsEnabled) {
-              handleUrlContentChange(e, modifiedUrlDecoratorState);
-            }
-
-            // 图片装饰器
-            if (imageDecoratorsEnabled) {
-              handleImageContentChange(e, modifiedImageDecoratorState);
-            }
-          }
-        }),
+          }),
         );
 
         // 监听滚动事件
         disposableStore.current.add(
           originalEditorRef.current.onDidScrollChange(() => {
-          if (originalTimestampUpdateTimeoutRef.current) {
-            clearTimeout(originalTimestampUpdateTimeoutRef.current);
-          }
-
-          originalTimestampUpdateTimeoutRef.current = setTimeout(() => {
-            if (originalEditorRef.current && timestampDecoratorsEnabled) {
-              updateTimestampDecorations(
-                originalEditorRef.current,
-                originalTimestampDecoratorState,
-              );
-            }
-          }, 200); // 添加防抖
-
-          if (originalBase64UpdateTimeoutRef.current) {
-            clearTimeout(originalBase64UpdateTimeoutRef.current);
-          }
-
-          originalBase64UpdateTimeoutRef.current = setTimeout(() => {
-            if (originalEditorRef.current && base64DecoratorsEnabled) {
-              updateBase64Decorations(
-                originalEditorRef.current,
-                originalBase64DecoratorState,
-              );
-            }
-          }, 200);
-
-          if (originalUnicodeUpdateTimeoutRef.current) {
-            clearTimeout(originalUnicodeUpdateTimeoutRef.current);
-          }
-
-          originalUnicodeUpdateTimeoutRef.current = setTimeout(() => {
-            if (originalEditorRef.current && unicodeDecoratorsEnabled) {
-              updateUnicodeDecorations(
-                originalEditorRef.current,
-                originalUnicodeDecoratorState,
-              );
-            }
-          }, 200);
-
-          if (originalUrlUpdateTimeoutRef.current) {
-            clearTimeout(originalUrlUpdateTimeoutRef.current);
-          }
-
-          originalUrlUpdateTimeoutRef.current = setTimeout(() => {
-            if (originalEditorRef.current && urlDecoratorsEnabled) {
-              updateUrlDecorations(
-                originalEditorRef.current,
-                originalUrlDecoratorState,
-              );
-            }
-          }, 200);
-
-          if (originalImageUpdateTimeoutRef.current) {
-            clearTimeout(originalImageUpdateTimeoutRef.current);
-          }
-
-          originalImageUpdateTimeoutRef.current = setTimeout(() => {
-            if (originalEditorRef.current && imageDecoratorsEnabled) {
-              updateImageDecorations(
-                originalEditorRef.current,
-                originalImageDecoratorState,
-              );
-            }
-          }, 300);
-        }),
+            scheduleEditorInlineDecorationRefresh(
+              originalEditorRef.current,
+              "original",
+            );
+          }),
         );
 
         disposableStore.current.add(
           modifiedEditorRef.current.onDidScrollChange(() => {
-          if (modifiedTimestampUpdateTimeoutRef.current) {
-            clearTimeout(modifiedTimestampUpdateTimeoutRef.current);
-          }
-
-          modifiedTimestampUpdateTimeoutRef.current = setTimeout(() => {
-            if (modifiedEditorRef.current && timestampDecoratorsEnabled) {
-              updateTimestampDecorations(
-                modifiedEditorRef.current,
-                modifiedTimestampDecoratorState,
-              );
-            }
-          }, 200); // 添加防抖
-
-          if (modifiedBase64UpdateTimeoutRef.current) {
-            clearTimeout(modifiedBase64UpdateTimeoutRef.current);
-          }
-
-          modifiedBase64UpdateTimeoutRef.current = setTimeout(() => {
-            if (modifiedEditorRef.current && base64DecoratorsEnabled) {
-              updateBase64Decorations(
-                modifiedEditorRef.current,
-                modifiedBase64DecoratorState,
-              );
-            }
-          }, 200);
-
-          if (modifiedUnicodeUpdateTimeoutRef.current) {
-            clearTimeout(modifiedUnicodeUpdateTimeoutRef.current);
-          }
-
-          modifiedUnicodeUpdateTimeoutRef.current = setTimeout(() => {
-            if (modifiedEditorRef.current && unicodeDecoratorsEnabled) {
-              updateUnicodeDecorations(
-                modifiedEditorRef.current,
-                modifiedUnicodeDecoratorState,
-              );
-            }
-          }, 200);
-
-          if (modifiedUrlUpdateTimeoutRef.current) {
-            clearTimeout(modifiedUrlUpdateTimeoutRef.current);
-          }
-
-          modifiedUrlUpdateTimeoutRef.current = setTimeout(() => {
-            if (modifiedEditorRef.current && urlDecoratorsEnabled) {
-              updateUrlDecorations(
-                modifiedEditorRef.current,
-                modifiedUrlDecoratorState,
-              );
-            }
-          }, 200);
-
-          if (modifiedImageUpdateTimeoutRef.current) {
-            clearTimeout(modifiedImageUpdateTimeoutRef.current);
-          }
-
-          modifiedImageUpdateTimeoutRef.current = setTimeout(() => {
-            if (modifiedEditorRef.current && imageDecoratorsEnabled) {
-              updateImageDecorations(
-                modifiedEditorRef.current,
-                modifiedImageDecoratorState,
-              );
-            }
-          }, 300);
-        }),
+            scheduleEditorInlineDecorationRefresh(
+              modifiedEditorRef.current,
+              "modified",
+            );
+          }),
         );
 
         // 初始化完成后更新时间戳装饰器
@@ -1373,10 +1356,23 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
 
       // 统一释放所有 Monaco 事件监听器
       disposableStore.current.dispose();
+      if (originalInlineDecorationUpdateTimeoutRef.current) {
+        clearTimeout(originalInlineDecorationUpdateTimeoutRef.current);
+        originalInlineDecorationUpdateTimeoutRef.current = null;
+      }
+      if (modifiedInlineDecorationUpdateTimeoutRef.current) {
+        clearTimeout(modifiedInlineDecorationUpdateTimeoutRef.current);
+        modifiedInlineDecorationUpdateTimeoutRef.current = null;
+      }
 
       // 销毁差异编辑器实例（会同时清理内部模型和子编辑器）
       if (editorRef.current) {
+        const originalModel = originalEditorRef.current?.getModel();
+        const modifiedModel = modifiedEditorRef.current?.getModel();
+
         editorRef.current.dispose();
+        originalModel?.dispose();
+        modifiedModel?.dispose();
         editorRef.current = null;
       }
 
@@ -1724,7 +1720,14 @@ const MonacoDiffEditor: React.FC<MonacoDiffEditorProps> = ({
       return 0;
     }
 
-    return editor.getModel()?.getLineCount() || 0;
+    const model = editor.getModel();
+    const workload = getEditorWorkload(model);
+
+    if (!shouldRunInlineDecorations(workload)) {
+      return 0;
+    }
+
+    return model?.getLineCount() || 0;
   };
 
   // 清空指定编辑器的所有装饰器

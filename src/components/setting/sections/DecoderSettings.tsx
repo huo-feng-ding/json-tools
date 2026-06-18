@@ -1,0 +1,151 @@
+import { Switch } from "@heroui/react";
+
+import {
+  ControlSlot,
+  InfoNote,
+  SectionCard,
+  SectionHeader,
+  SettingRow,
+  type SettingTone,
+} from "../settingPrimitives";
+
+import toast from "@/utils/toast";
+import { useSettingsStore } from "@/store/useSettingsStore";
+import {
+  setBase64DecorationEnabled,
+  setBase64ProviderEnabled,
+} from "@/components/monacoEditor/decorations/base64Decoration";
+import { setUnicodeDecorationEnabled } from "@/components/monacoEditor/decorations/unicodeDecoration";
+import { setTimestampDecorationEnabled } from "@/components/monacoEditor/decorations/timestampDecoration";
+import {
+  setUrlDecorationEnabled,
+  setUrlProviderEnabled,
+} from "@/components/monacoEditor/decorations/urlDecoration";
+
+/** 单个解码器行 */
+interface DecoderItem {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  tone: SettingTone;
+}
+
+const DECODERS: DecoderItem[] = [
+  {
+    id: "timestamp",
+    title: "时间戳解码器",
+    description: "自动识别并转换时间戳为人类可读的日期时间格式",
+    icon: "solar:clock-circle-bold",
+    tone: "info",
+  },
+  {
+    id: "base64",
+    title: "Base64 解码器",
+    description: "自动识别并解码 Base64 编码的字符串",
+    icon: "ph:binary-fill",
+    tone: "violet",
+  },
+  {
+    id: "unicode",
+    title: "Unicode 解码器",
+    description: "自动识别并转换 Unicode 转义序列为可读字符",
+    icon: "solar:global-bold",
+    tone: "violet",
+  },
+  {
+    id: "url",
+    title: "URL 解码器",
+    description: "自动识别并转换URL编码序列为可读字符",
+    icon: "solar:link-bold",
+    tone: "warning",
+  },
+];
+
+/**
+ * 解码器设置：时间戳 / Base64 / Unicode / URL。开关会同步触发 monaco 装饰副作用。
+ * 行为与原 settingPage.renderDecoderSettings 一致。
+ */
+export function DecoderSettings() {
+  const {
+    timestampDecoderEnabled,
+    base64DecoderEnabled,
+    unicodeDecoderEnabled,
+    urlDecoderEnabled,
+    setTimestampDecoderEnabled,
+    setBase64DecoderEnabled,
+    setUnicodeDecoderEnabled,
+    setUrlDecoderEnabled,
+  } = useSettingsStore();
+
+  const handleToggle = (id: string, value: boolean) => {
+    switch (id) {
+      case "timestamp":
+        setTimestampDecorationEnabled(value);
+        setTimestampDecoderEnabled(value);
+        toast.success(`时间戳解码器已${value ? "启用" : "禁用"}`);
+        break;
+      case "base64":
+        setBase64DecorationEnabled(value);
+        setBase64ProviderEnabled(value);
+        setBase64DecoderEnabled(value);
+        toast.success(`Base64解码器已${value ? "启用" : "禁用"}`);
+        break;
+      case "unicode":
+        setUnicodeDecorationEnabled(value);
+        setUnicodeDecoderEnabled(value);
+        toast.success(`Unicode解码器已${value ? "启用" : "禁用"}`);
+        break;
+      case "url":
+        setUrlDecorationEnabled(value);
+        setUrlProviderEnabled(value);
+        setUrlDecoderEnabled(value);
+        toast.success(`URL解码器已${value ? "启用" : "禁用"}`);
+        break;
+    }
+  };
+
+  const enabledMap: Record<string, boolean> = {
+    timestamp: timestampDecoderEnabled,
+    base64: base64DecoderEnabled,
+    unicode: unicodeDecoderEnabled,
+    url: urlDecoderEnabled,
+  };
+
+  return (
+    <div className="h-full">
+      <SectionHeader
+        description="管理编辑器中各种解码器的显示和行为"
+        title="解码器设置"
+      />
+
+      <SectionCard divided>
+        {DECODERS.map((d) => (
+          <SettingRow
+            key={d.id}
+            description={d.description}
+            icon={d.icon}
+            title={d.title}
+            tone={d.tone}
+          >
+            <ControlSlot>
+              <Switch
+                color="success"
+                isSelected={enabledMap[d.id]}
+                size="lg"
+                onValueChange={(value) => handleToggle(d.id, value)}
+              />
+            </ControlSlot>
+          </SettingRow>
+        ))}
+
+        <InfoNote title="关于解码器">
+          <p>
+            解码器可以自动识别并转换特定格式的数据，使其更易读。这些设置在所有编辑器中全局生效。
+          </p>
+          <p>如果程序出现卡顿等性能问题，可以尝试关闭部分解码器。</p>
+        </InfoNote>
+      </SectionCard>
+    </div>
+  );
+}

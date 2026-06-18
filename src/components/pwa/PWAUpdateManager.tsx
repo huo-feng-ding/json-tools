@@ -50,7 +50,6 @@ const OfflineToast: React.FC<PWAUpdateToastProps> = ({ className }) => {
   );
 };
 
-
 // 更新提示模态框
 const UpdateModal: React.FC = () => {
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -74,10 +73,7 @@ const UpdateModal: React.FC = () => {
       setTimeout(() => setProgress(100), 500);
 
       // 显示更新成功提示
-      toast.success(
-        "应用已更新",
-        "新版本已成功安装，页面即将刷新"
-      );
+      toast.success("应用已更新", "新版本已成功安装，页面即将刷新");
 
       // 延迟刷新，让用户看到成功提示
       setTimeout(() => {

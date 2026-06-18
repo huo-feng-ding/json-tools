@@ -13,11 +13,11 @@ export const SearchBox: React.FC = () => {
       isClearable
       aria-label="搜索工具"
       classNames={{
-        base: "max-w-lg",
+        base: "w-full md:max-w-sm",
         inputWrapper: "shadow-sm",
       }}
       placeholder="搜索工具名称、描述或分类..."
-      size="lg"
+      size="md"
       startContent={
         <Icon
           className="text-gray-400 dark:text-gray-500 flex-shrink-0 ml-1 transition-transform group-hover:scale-110"

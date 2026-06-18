@@ -606,19 +606,19 @@ const JsonTableOperationBar: React.FC<JsonTableOperationBarProps> = ({
         tableMode !== "primitive" &&
         onGlobalFilterChange && (
           <Input
-            size="sm"
-            placeholder="搜索表格内容..."
-            value={globalFilterValue}
-            onValueChange={onGlobalFilterChange}
+            isClearable
             className="w-40 ml-1"
+            placeholder="搜索表格内容..."
+            size="sm"
             startContent={
               <Icon
+                className="text-default-400"
                 icon="mdi:magnify"
                 width={16}
-                className="text-default-400"
               />
             }
-            isClearable
+            value={globalFilterValue}
+            onValueChange={onGlobalFilterChange}
           />
         )}
 

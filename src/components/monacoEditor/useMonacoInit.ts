@@ -26,6 +26,7 @@ function ensureMonacoInitialized(): Promise<void> {
         throw error;
       });
   }
+
   return initPromise;
 }
 

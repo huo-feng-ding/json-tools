@@ -66,29 +66,26 @@ const ToolboxPage: React.FC = () => {
   );
 
   return (
-    <div className="bg-default-50 w-full h-full">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+    <div className="bg-default-50 w-full h-full overflow-auto">
+      <div className="mx-auto flex min-h-full max-w-7xl flex-col px-4 py-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
           <div>
-            <h1 className="text-3xl font-bold mb-2 flex items-center">
+            <h1 className="text-lg font-semibold flex items-center">
               <Icon
-                className="mr-3 text-primary"
+                className="mr-2 text-primary"
                 icon="solar:toolbox-bold"
-                width={32}
+                width={22}
               />
               工具箱
             </h1>
-            <p className="text-default-500">
-              发现并使用我们精心设计的各种实用工具
-            </p>
           </div>
           <SearchBox />
         </div>
 
         {/* 分类筛选器 */}
         {categories.length > 0 && (
-          <div className="mb-6 flex flex-wrap gap-2">
-            <span className="text-default-500 flex items-center mr-2">
+          <div className="mb-4 flex flex-wrap gap-2">
+            <span className="text-default-500 flex items-center mr-1 text-sm">
               <Icon className="mr-1" icon="solar:tag-outline" width={16} />
               分类:
             </span>
@@ -119,7 +116,7 @@ const ToolboxPage: React.FC = () => {
         {tools.length > 0 ? (
           <motion.div
             animate={mounted ? "visible" : "hidden"}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3 pb-4"
             initial="hidden"
             variants={containerVariants}
           >
