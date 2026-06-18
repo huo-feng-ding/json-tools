@@ -28,7 +28,7 @@ export function SettingsSidebar({
     <div className="flex h-full w-[60px] flex-shrink-0 flex-col border-r border-default-200/70 bg-background/80 backdrop-blur-md dark:bg-default-50/20 md:w-[188px]">
       {/* 标题区 */}
       <div className="px-2 pb-2 pt-4 md:px-3">
-        <p className="hidden text-[11px] font-medium text-default-500 md:block">
+        <p className="hidden text-[10.5px] font-medium text-default-500 md:block">
           设置
         </p>
       </div>
@@ -49,7 +49,7 @@ export function SettingsSidebar({
               onClick={() => onSelect(item.key)}
             >
               <Icon className="flex-shrink-0" icon={item.icon} width={18} />
-              <span className="hidden truncate text-[13px] font-medium md:inline">
+              <span className="hidden truncate text-[12px] font-medium md:inline">
                 {item.label}
               </span>
             </button>

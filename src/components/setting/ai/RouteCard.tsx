@@ -47,10 +47,10 @@ export function RouteCard({
           <Icon icon={ROUTE_ICON[routeType]} width={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-semibold text-default-900">
+          <div className="text-[13px] font-semibold text-default-900">
             {ROUTE_LABEL[routeType]}
           </div>
-          <div className="mt-0.5 text-[11.5px] text-default-500">
+          <div className="mt-0.5 text-[11px] text-default-500">
             {description}
           </div>
         </div>

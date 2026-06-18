@@ -63,7 +63,7 @@ export function AppearanceSettings() {
                 <div className="h-2 w-[90%] rounded-full bg-primary/40" />
               </div>
             </div>
-            <p className="text-[13px] font-semibold text-default-900">
+            <p className="text-[12.5px] font-semibold text-default-900">
               气泡模式
             </p>
             <p className="mt-0.5 text-[11px] text-default-500">
@@ -83,7 +83,7 @@ export function AppearanceSettings() {
                 <div className="h-1.5 w-full rounded-sm bg-default-300" />
               </div>
             </div>
-            <p className="text-[13px] font-semibold text-default-900">
+            <p className="text-[12.5px] font-semibold text-default-900">
               文档模式
             </p>
             <p className="mt-0.5 text-[11px] text-default-500">
@@ -108,7 +108,7 @@ export function AppearanceSettings() {
               >
                 Aa 示例
               </div>
-              <p className="text-[12.5px] font-semibold text-default-900">
+              <p className="text-[12px] font-semibold text-default-900">
                 {opt.label}
               </p>
               <p className="mt-0.5 text-[11px] text-default-500">{opt.desc}</p>

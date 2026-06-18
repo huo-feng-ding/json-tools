@@ -51,10 +51,10 @@ export function AboutContent() {
               <img alt="JSON Tools Logo" className="h-8 w-8" src="./logo.png" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-default-900">
+              <h3 className="text-base font-semibold text-default-900">
                 JSON Tools
               </h3>
-              <p className="text-[13px] text-default-500">
+              <p className="text-[12px] text-default-500">
                 强大的 JSON 处理工具集，一站式 JSON 开发者工具箱
               </p>
             </div>
@@ -78,7 +78,7 @@ export function AboutContent() {
                 <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-success text-white">
                   <Icon icon={f.icon} width={18} />
                 </div>
-                <span className="text-[14px] font-medium text-default-900">
+                <span className="text-[13px] font-medium text-default-900">
                   {f.label}
                 </span>
               </div>
@@ -100,7 +100,7 @@ export function AboutContent() {
                   <Icon icon={l.icon} width={18} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-medium text-default-900">
+                  <span className="block text-[13px] font-medium text-default-900">
                     {l.label}
                   </span>
                 </div>

@@ -40,11 +40,11 @@ interface SectionHeaderProps {
 export function SectionHeader({ title, description }: SectionHeaderProps) {
   return (
     <div className="mb-5">
-      <h2 className="text-xl font-semibold tracking-normal text-default-900 sm:text-2xl">
+      <h2 className="text-lg font-semibold tracking-normal text-default-900 sm:text-xl">
         {title}
       </h2>
       {description ? (
-        <p className="mt-1 text-[13px] leading-relaxed text-default-500 sm:text-sm">
+        <p className="mt-1 text-[12.5px] leading-relaxed text-default-500 sm:text-[13px]">
           {description}
         </p>
       ) : null}
@@ -59,7 +59,7 @@ interface GroupLabelProps {
 /** 分组小标题：小号大写灰字，仿 macOS 设置的分组标签 */
 export function GroupLabel({ children }: GroupLabelProps) {
   return (
-    <h4 className="mb-2 mt-5 px-3 text-[12px] font-medium text-default-500 first:mt-0">
+    <h4 className="mb-2 mt-5 px-3 text-[11.5px] font-medium text-default-500 first:mt-0">
       {children}
     </h4>
   );
@@ -129,9 +129,9 @@ export function SettingRow({
           <Icon icon={icon} width={18} />
         </div>
         <div className="min-w-0">
-          <p className="text-[14px] font-medium text-default-900">{title}</p>
+          <p className="text-[13px] font-medium text-default-900">{title}</p>
           {description ? (
-            <p className="mt-0.5 text-[12.5px] leading-relaxed text-default-500">
+            <p className="mt-0.5 text-[12px] leading-relaxed text-default-500">
               {description}
             </p>
           ) : null}
@@ -186,7 +186,7 @@ export function InfoNote({
         icon={icon}
         width={18}
       />
-      <div className="text-[13px] leading-relaxed text-default-700">
+      <div className="text-[12px] leading-relaxed text-default-700">
         {title ? (
           <p
             className={cn(
@@ -290,7 +290,7 @@ export function FormField({
   return (
     <div className="space-y-2">
       <label
-        className="flex items-center gap-2 text-[13px] font-medium text-default-800"
+        className="flex items-center gap-2 text-[12.5px] font-medium text-default-800"
         htmlFor={id}
       >
         {icon ? (
