@@ -1,3 +1,16 @@
+# [1.25.0](https://github.com/fevrax/json-tools/compare/v1.24.3...v1.25.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* add optional chaining to prevent crash when switching from vanilla to monaco editor ([19a0cec](https://github.com/fevrax/json-tools/commit/19a0ceceb4d0da514de7f3b2767d7cb3bbcc1c3d))
+* convert LosslessNumber to native number before passing to vanilla editor ([d9ec2f7](https://github.com/fevrax/json-tools/commit/d9ec2f795e8302e2270736a83756e4749e976305))
+
+
+### Features
+
+* add JSON key naming convention converter tool ([f2c020e](https://github.com/fevrax/json-tools/commit/f2c020ecc3bb7be518f7a8758bdd2468ec82e10a))
+
 ## [1.24.3](https://github.com/fevrax/json-tools/compare/v1.24.2...v1.24.3) (2026-05-14)
 
 
