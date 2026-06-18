@@ -51,19 +51,19 @@ export function AppearanceSettings() {
 
       <GroupLabel>聊天窗口样式</GroupLabel>
       <SectionCard>
-        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5">
+        <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 sm:p-4">
           <ChoiceCard
             selected={chatStyle === "bubble"}
             onSelect={() => handleStyleChange("bubble")}
           >
-            <div className="mb-2.5 flex h-16 items-center rounded-lg bg-default-100 p-2.5">
+            <div className="mb-2.5 flex h-[68px] items-center rounded-md bg-default-100 p-2.5">
               <div className="flex w-full flex-col gap-1.5">
                 <div className="h-2 w-full rounded-full bg-primary/40" />
                 <div className="ml-auto h-2 w-3/5 rounded-full bg-default-300" />
                 <div className="h-2 w-[90%] rounded-full bg-primary/40" />
               </div>
             </div>
-            <p className="text-[13px] font-semibold text-default-900">
+            <p className="text-[12.5px] font-semibold text-default-900">
               气泡模式
             </p>
             <p className="mt-0.5 text-[11px] text-default-500">
@@ -75,7 +75,7 @@ export function AppearanceSettings() {
             selected={chatStyle === "document"}
             onSelect={() => handleStyleChange("document")}
           >
-            <div className="mb-2.5 flex h-16 items-center rounded-lg bg-default-100 p-2.5">
+            <div className="mb-2.5 flex h-[68px] items-center rounded-md bg-default-100 p-2.5">
               <div className="flex w-full flex-col gap-1.5">
                 <div className="h-1.5 w-full rounded-sm bg-primary/40" />
                 <div className="h-1.5 w-full rounded-sm bg-default-300" />
@@ -83,7 +83,7 @@ export function AppearanceSettings() {
                 <div className="h-1.5 w-full rounded-sm bg-default-300" />
               </div>
             </div>
-            <p className="text-[13px] font-semibold text-default-900">
+            <p className="text-[12.5px] font-semibold text-default-900">
               文档模式
             </p>
             <p className="mt-0.5 text-[11px] text-default-500">
@@ -95,7 +95,7 @@ export function AppearanceSettings() {
 
       <GroupLabel>字体大小</GroupLabel>
       <SectionCard>
-        <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3 sm:p-5">
+        <div className="grid grid-cols-1 gap-3 p-3 sm:grid-cols-3 sm:p-4">
           {FONT_OPTIONS.map((opt) => (
             <ChoiceCard
               key={opt.value}
@@ -108,7 +108,7 @@ export function AppearanceSettings() {
               >
                 Aa 示例
               </div>
-              <p className="text-[12.5px] font-semibold text-default-900">
+              <p className="text-[12px] font-semibold text-default-900">
                 {opt.label}
               </p>
               <p className="mt-0.5 text-[11px] text-default-500">{opt.desc}</p>

@@ -1,6 +1,7 @@
 import { Input } from "@heroui/react";
 
 import {
+  ControlSlot,
   InfoNote,
   SectionCard,
   SectionHeader,
@@ -63,7 +64,7 @@ export function ShortcutsSettings() {
   };
 
   const Hint = () => (
-    <div className="rounded bg-default-100 px-2 py-1 text-xs text-default-500">
+    <div className="whitespace-nowrap rounded-md bg-default-100 px-2 py-1 text-xs text-default-500">
       按组合键设置
     </div>
   );
@@ -79,20 +80,22 @@ export function ShortcutsSettings() {
           title="新建标签页"
           tone="success"
         >
-          <Input
-            className="w-40 sm:w-48"
-            placeholder="Ctrl+Shift+T"
-            size="sm"
-            value={newTabShortcut}
-            variant="bordered"
-            onChange={(e) => handleShortcutChange("newTab", e.target.value)}
-            onKeyDown={(e) => {
-              const shortcut = captureShortcut(e);
+          <ControlSlot className="sm:min-w-[280px]" align="stretch">
+            <Input
+              className="min-w-[150px] flex-1 sm:w-48"
+              placeholder="Ctrl+Shift+T"
+              size="sm"
+              value={newTabShortcut}
+              variant="bordered"
+              onChange={(e) => handleShortcutChange("newTab", e.target.value)}
+              onKeyDown={(e) => {
+                const shortcut = captureShortcut(e);
 
-              if (shortcut) handleShortcutChange("newTab", shortcut);
-            }}
-          />
-          <Hint />
+                if (shortcut) handleShortcutChange("newTab", shortcut);
+              }}
+            />
+            <Hint />
+          </ControlSlot>
         </SettingRow>
 
         <SettingRow
@@ -101,20 +104,24 @@ export function ShortcutsSettings() {
           title="关闭标签页"
           tone="danger"
         >
-          <Input
-            className="w-40 sm:w-48"
-            placeholder="Ctrl+Shift+W"
-            size="sm"
-            value={closeTabShortcut}
-            variant="bordered"
-            onChange={(e) => handleShortcutChange("closeTab", e.target.value)}
-            onKeyDown={(e) => {
-              const shortcut = captureShortcut(e);
+          <ControlSlot className="sm:min-w-[280px]" align="stretch">
+            <Input
+              className="min-w-[150px] flex-1 sm:w-48"
+              placeholder="Ctrl+Shift+W"
+              size="sm"
+              value={closeTabShortcut}
+              variant="bordered"
+              onChange={(e) =>
+                handleShortcutChange("closeTab", e.target.value)
+              }
+              onKeyDown={(e) => {
+                const shortcut = captureShortcut(e);
 
-              if (shortcut) handleShortcutChange("closeTab", shortcut);
-            }}
-          />
-          <Hint />
+                if (shortcut) handleShortcutChange("closeTab", shortcut);
+              }}
+            />
+            <Hint />
+          </ControlSlot>
         </SettingRow>
 
         <InfoNote title="关于快捷键">

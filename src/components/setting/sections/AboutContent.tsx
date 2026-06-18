@@ -43,32 +43,25 @@ export function AboutContent() {
         title="关于 JSON Tools"
       />
 
-      {/* Hero 品牌卡片 */}
-      <SectionCard className="mb-5 overflow-visible">
-        <div className="relative flex flex-col items-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 via-primary/5 to-purple-500/5 px-6 py-10 text-center">
-          {/* 装饰光晕 */}
-          <div className="pointer-events-none absolute -top-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
-          <div className="relative mb-4 flex h-[72px] w-[72px] items-center justify-center rounded-[18px] bg-gradient-to-br from-primary to-purple-500 shadow-[0_8px_24px_rgba(99,102,241,0.35)]">
-            <img
-              alt="JSON Tools Logo"
-              className="h-12 w-12 drop-shadow"
-              src="./logo.png"
-            />
+      {/* 品牌信息 */}
+      <SectionCard className="mb-5">
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-default-100">
+              <img alt="JSON Tools Logo" className="h-8 w-8" src="./logo.png" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-default-900">
+                JSON Tools
+              </h3>
+              <p className="text-[12px] text-default-500">
+                强大的 JSON 处理工具集，一站式 JSON 开发者工具箱
+              </p>
+            </div>
           </div>
-          <h3 className="relative text-2xl font-bold tracking-tight text-default-900">
-            JSON Tools
-          </h3>
-          <div className="relative mt-2.5 flex items-center gap-2">
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[12px] font-semibold text-primary">
-              {APP_VERSION}
-            </span>
-            <span className="rounded-full bg-purple-500/10 px-2.5 py-0.5 text-[12px] font-semibold text-purple-500">
-              专业版
-            </span>
-          </div>
-          <p className="relative mt-3 max-w-md text-[14px] text-default-500">
-            强大的 JSON 处理工具集，一站式 JSON 开发者工具箱
-          </p>
+          <span className="w-fit rounded-full border border-default-200 px-2.5 py-1 text-xs font-medium text-default-600">
+            {APP_VERSION}
+          </span>
         </div>
       </SectionCard>
 
@@ -80,12 +73,12 @@ export function AboutContent() {
             {FEATURES.map((f) => (
               <div
                 key={f.label}
-                className="flex items-center gap-3 px-4 py-3 sm:px-5"
+                className="flex items-center gap-3 px-3 py-3 sm:px-4"
               >
-                <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] bg-success text-white">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-success text-white">
                   <Icon icon={f.icon} width={18} />
                 </div>
-                <span className="text-[14px] font-medium text-default-900">
+                <span className="text-[13px] font-medium text-default-900">
                   {f.label}
                 </span>
               </div>
@@ -100,14 +93,14 @@ export function AboutContent() {
               <ExternalLink
                 key={l.label}
                 showUrl
-                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-default-100/40 sm:px-5"
+                className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-default-50/80 sm:px-4"
                 href={l.href}
               >
-                <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] bg-default-200 text-default-700">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-default-100 text-default-700">
                   <Icon icon={l.icon} width={18} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-medium text-default-900">
+                  <span className="block text-[13px] font-medium text-default-900">
                     {l.label}
                   </span>
                 </div>

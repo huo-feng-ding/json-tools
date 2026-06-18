@@ -1,9 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@heroui/react";
 import { useTheme } from "next-themes";
 import { Content } from "vanilla-jsoneditor-cn";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import { useTabStore } from "@/store/useTabStore";
+import { useTabStore, type TabItem } from "@/store/useTabStore";
 import DynamicTabs, {
   DynamicTabsRef,
 } from "@/components/dynamicTabs/DynamicTabs.tsx";
@@ -36,9 +37,15 @@ import clipboard from "@/utils/clipboard";
 import toast from "@/utils/toast";
 import { stringifyJson } from "@/utils/json";
 import UtoolsListener from "@/services/utoolsListener";
+import ToolboxPage from "@/pages/toolboxPage";
+import { getToolComponent } from "@/pages/tools/toolRegistry";
+import { useToolboxStore } from "@/store/useToolboxStore";
 
 export default function IndexPage() {
   const { theme } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const tools = useToolboxStore((state) => state.tools);
   const monacoReady = useMonacoInit();
   const monacoJsonEditorRefs = useRef<Record<string, MonacoJsonEditorRef>>({});
   const monacoDiffEditorRefs = useRef<Record<string, MonacoDiffEditorRef>>({});
@@ -68,11 +75,14 @@ export default function IndexPage() {
     restoreTabHistory,
     deleteTabHistory,
     clearTabHistory,
+    openToolboxTab,
+    addToolTab,
   } = useTabStore();
 
   const sidebarStore = useSidebarStore();
   const tabRef = useRef<DynamicTabsRef>(null);
   const monacoDiffOperationBarRef = useRef<MonacoDiffOperationBarRef>(null);
+  const [isTabStoreReady, setIsTabStoreReady] = useState(false);
 
   const monacoUpdateContentTimeoutId = useRef<Record<string, NodeJS.Timeout>>(
     {},
@@ -207,7 +217,9 @@ export default function IndexPage() {
           onShowHistory={handleShowHistory}
         />
         <div className="editor-container flex-grow overflow-hidden">
-          {tabs.map((tab) => {
+          {tabs
+            .filter((tab) => tab.kind === "json")
+            .map((tab) => {
             // 如果已加载过该 tab，或者该 tab 恰好为当前激活 tab，则渲染
             const shouldRender = loadedEditors.monaco.has(tab.key);
             const isVisible = tab.key === activeTabKey;
@@ -273,7 +285,7 @@ export default function IndexPage() {
                 )}
               </div>
             );
-          })}
+            })}
         </div>
       </>
     );
@@ -305,7 +317,9 @@ export default function IndexPage() {
           }}
         />
         <div className="editor-container flex-grow overflow-hidden">
-          {tabs.map((tab) => {
+          {tabs
+            .filter((tab) => tab.kind === "json")
+            .map((tab) => {
             const shouldRender = loadedEditors.diff.has(tab.key);
             const isVisible = tab.key === activeTabKey;
 
@@ -367,7 +381,7 @@ export default function IndexPage() {
                 )}
               </div>
             );
-          })}
+            })}
         </div>
       </div>
     );
@@ -377,7 +391,9 @@ export default function IndexPage() {
   const renderVanillaJsonEditor = () => {
     return (
       <div className="editor-container h-full">
-        {tabs.map((tab) => {
+        {tabs
+          .filter((tab) => tab.kind === "json")
+          .map((tab) => {
           const shouldRender = loadedEditors.vanilla.has(tab.key);
           const isVisible = tab.key === activeTabKey;
 
@@ -437,7 +453,7 @@ export default function IndexPage() {
               )}
             </div>
           );
-        })}
+          })}
       </div>
     );
   };
@@ -462,7 +478,7 @@ export default function IndexPage() {
   const tabSwitchHandle = () => {
     const currentTab = activeTab();
 
-    if (!currentTab) {
+    if (!currentTab || currentTab.kind !== "json") {
       return;
     }
 
@@ -540,7 +556,7 @@ export default function IndexPage() {
   const urlRefreshHandle = (key: string) => {
     const currentTab = getTabByKey(key);
 
-    if (!currentTab) {
+    if (!currentTab || currentTab.kind !== "json") {
       return;
     }
 
@@ -579,10 +595,60 @@ export default function IndexPage() {
 
       // 同步标签页数据
       await syncTabStore();
+      setIsTabStoreReady(true);
     };
 
     init();
   }, []);
+
+  useEffect(() => {
+    if (!isTabStoreReady) return;
+
+    const browserPath = window.location.pathname;
+    const routePath =
+      location.pathname === "/" && browserPath.startsWith("/toolbox")
+        ? browserPath
+        : location.pathname;
+    const normalizeWorkspaceUrl = () => {
+      if (browserPath.startsWith("/toolbox")) {
+        window.history.replaceState(null, "", `${window.location.origin}#/`);
+
+        return;
+      }
+
+      navigate("/", { replace: true });
+    };
+
+    if (routePath === "/toolbox") {
+      openToolboxTab();
+      normalizeWorkspaceUrl();
+
+      return;
+    }
+
+    const toolRouteMatch = routePath.match(/^\/toolbox\/([^/]+)$/);
+
+    if (!toolRouteMatch) return;
+
+    const toolId = decodeURIComponent(toolRouteMatch[1]);
+    const routeTool = tools.find((tool) => tool.id === toolId);
+
+    if (routeTool) {
+      addToolTab(routeTool);
+    } else {
+      openToolboxTab();
+      toast.warning("未找到对应工具", "已返回工具箱");
+    }
+
+    normalizeWorkspaceUrl();
+  }, [
+    addToolTab,
+    isTabStoreReady,
+    location.pathname,
+    navigate,
+    openToolboxTab,
+    tools,
+  ]);
 
   useEffect(() => {
     // 设置 UtoolsListener 的编辑器引用
@@ -592,6 +658,12 @@ export default function IndexPage() {
   useEffect(() => {
     // 在切换标签时预加载下一个编辑器
     if (activeTabKey) {
+      const currentTab = getTabByKey(activeTabKey);
+
+      if (!currentTab || currentTab.kind !== "json") {
+        return;
+      }
+
       // 设置新标签页的加载状态
       setEditorLoading((prev) => ({
         ...prev,
@@ -734,7 +806,9 @@ export default function IndexPage() {
   const renderJsonTableView = () => {
     return (
       <div className="h-full">
-        {tabs.map((tab) => {
+        {tabs
+          .filter((tab) => tab.kind === "json")
+          .map((tab) => {
           const shouldRender = loadedEditors.table.has(tab.key);
           const isVisible = tab.key === activeTabKey;
 
@@ -845,10 +919,54 @@ export default function IndexPage() {
               )}
             </div>
           );
-        })}
+          })}
       </div>
     );
   };
+
+  const renderToolTab = (tab: TabItem) => {
+    const toolId = String(tab.extraData?.toolId || "");
+    const ToolComponent = getToolComponent(toolId);
+
+    if (!ToolComponent) {
+      return (
+        <div className="flex h-full w-full items-center justify-center bg-default-50 text-default-500">
+          未找到工具：{toolId || tab.title}
+        </div>
+      );
+    }
+
+    return <ToolComponent />;
+  };
+
+  const renderWorkspaceTabs = () => {
+    return tabs
+      .filter((tab) => tab.kind === "toolbox" || tab.kind === "tool")
+      .map((tab) => {
+        const isVisible = tab.key === activeTabKey;
+
+        return (
+          <div
+            key={`workspace-${tab.key}`}
+            className={cn("h-full w-full", {
+              hidden: !isVisible,
+            })}
+          >
+            <Suspense
+              fallback={
+                <div className="flex h-full w-full items-center justify-center text-sm text-default-400">
+                  加载中...
+                </div>
+              }
+            >
+              {tab.kind === "toolbox" ? <ToolboxPage /> : renderToolTab(tab)}
+            </Suspense>
+          </div>
+        );
+      });
+  };
+
+  const activeTabItem = getTabByKey(activeTabKey);
 
   return (
     <div className="flex flex-col h-full dark:bg-vscode-dark">
@@ -859,7 +977,8 @@ export default function IndexPage() {
         onUrlRefresh={urlRefreshHandle}
       />
       <div className="flex-grow h-0 overflow-hidden flex flex-col">
-        {renderEditor()}
+        {activeTabItem?.kind === "json" && renderEditor()}
+        {renderWorkspaceTabs()}
       </div>
 
       {/* 历史记录弹窗 */}

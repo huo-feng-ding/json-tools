@@ -13,7 +13,12 @@ import {
 import { Icon } from "@iconify/react";
 import { useEffect, useState } from "react";
 
-import { GroupLabel, SectionCard, SectionHeader } from "../settingPrimitives";
+import {
+  GroupLabel,
+  InfoNote,
+  SectionCard,
+  SectionHeader,
+} from "../settingPrimitives";
 import { RouteCard } from "../ai/RouteCard";
 import { RouteConfigPanel } from "../ai/RouteConfigPanel";
 
@@ -315,14 +320,8 @@ export function AISettings() {
       </div>
 
       {/* 推荐横幅 */}
-      <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
-        <div className="mb-1.5 flex items-center gap-2">
-          <Icon className="text-primary" icon="solar:star-bold" width={18} />
-          <span className="text-[13px] font-semibold text-primary">
-            推荐使用 SSOOAI API
-          </span>
-        </div>
-        <p className="text-[12.5px] leading-relaxed text-default-600">
+      <InfoNote className="mx-0 mt-5 sm:mx-0" title="推荐使用 SSOOAI API">
+        <p>
           <ExternalLink
             className="font-medium text-primary hover:underline"
             href="https://api.ssooai.com"
@@ -330,9 +329,9 @@ export function AISettings() {
             SSOOAI
           </ExternalLink>{" "}
           提供稳定、高效且价格实惠的 API 服务，支持 ChatGPT、DeepSeek、Claude 4
-          等先进模型。新用户可享受充值优惠！
+          等先进模型。新用户可享受充值优惠。
         </p>
-      </div>
+      </InfoNote>
 
       {/* 线路配置面板 */}
       {configuringRoute ? <GroupLabel>线路配置</GroupLabel> : null}

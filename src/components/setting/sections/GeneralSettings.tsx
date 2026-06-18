@@ -15,6 +15,7 @@ import { useState } from "react";
 import { useTheme } from "next-themes";
 
 import {
+  ControlSlot,
   GroupLabel,
   SectionCard,
   SectionHeader,
@@ -104,12 +105,14 @@ export function GeneralSettings() {
           title="深色模式"
           tone="primary"
         >
-          <Switch
-            color="success"
-            isSelected={theme === "dark"}
-            size="lg"
-            onValueChange={(value) => setTheme(value ? "dark" : "light")}
-          />
+          <ControlSlot>
+            <Switch
+              color="success"
+              isSelected={theme === "dark"}
+              size="lg"
+              onValueChange={(value) => setTheme(value ? "dark" : "light")}
+            />
+          </ControlSlot>
         </SettingRow>
         <SettingRow
           description="应用启动时默认展开侧边栏"
@@ -117,36 +120,32 @@ export function GeneralSettings() {
           title="展开 Tab 栏"
           tone="info"
         >
-          <Switch
-            color="success"
-            isSelected={expandSidebar}
-            size="lg"
-            onValueChange={(value) => setExpandSidebar(value)}
-          />
+          <ControlSlot>
+            <Switch
+              color="success"
+              isSelected={expandSidebar}
+              size="lg"
+              onValueChange={(value) => setExpandSidebar(value)}
+            />
+          </ControlSlot>
         </SettingRow>
       </SectionCard>
 
       <GroupLabel>编辑器</GroupLabel>
       <SectionCard>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5 px-4 py-3 sm:px-5">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px] bg-warning text-white">
-              <Icon icon="fluent:text-indent-increase-16-filled" width={18} />
-            </div>
-            <div>
-              <p className="font-medium text-default-900">默认缩进大小</p>
-              <p className="mt-0.5 text-[13px] text-default-500">
-                新标签页 JSON 的缩进空格数
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-3">
+        <SettingRow
+          description="新标签页 JSON 的缩进空格数"
+          icon="fluent:text-indent-increase-16-filled"
+          title="默认缩进大小"
+          tone="warning"
+        >
+          <ControlSlot className="sm:min-w-[220px]" align="stretch">
             <span className="w-5 text-center text-sm font-medium tabular-nums text-default-600">
               {defaultIndentSize}
             </span>
             <Slider
               aria-label="调整默认缩进大小"
-              className="w-28 sm:w-40"
+              className="min-w-[140px] flex-1 sm:w-40"
               color="primary"
               maxValue={8}
               minValue={1}
@@ -154,8 +153,8 @@ export function GeneralSettings() {
               value={defaultIndentSize}
               onChange={(value) => handleIndentChange(value as number)}
             />
-          </div>
-        </div>
+          </ControlSlot>
+        </SettingRow>
       </SectionCard>
 
       <GroupLabel>数据</GroupLabel>
@@ -170,12 +169,14 @@ export function GeneralSettings() {
           title="本地数据持久化"
           tone={persistentDataEnabled ? "success" : "warning"}
         >
-          <Switch
-            color="success"
-            isSelected={persistentDataEnabled}
-            size="lg"
-            onValueChange={handlePersistenceChange}
-          />
+          <ControlSlot>
+            <Switch
+              color="success"
+              isSelected={persistentDataEnabled}
+              size="lg"
+              onValueChange={handlePersistenceChange}
+            />
+          </ControlSlot>
         </SettingRow>
       </SectionCard>
 
@@ -187,18 +188,20 @@ export function GeneralSettings() {
           title="重置应用"
           tone="danger"
         >
-          <Tooltip content="此操作将清除所有本地数据">
-            <Button
-              color="danger"
-              radius="full"
-              size="sm"
-              startContent={<Icon icon="solar:refresh-bold" width={16} />}
-              variant="flat"
-              onPress={removeStore}
-            >
-              重置…
-            </Button>
-          </Tooltip>
+          <ControlSlot>
+            <Tooltip content="此操作将清除所有本地数据">
+              <Button
+                color="danger"
+                radius="full"
+                size="sm"
+                startContent={<Icon icon="solar:refresh-bold" width={16} />}
+                variant="flat"
+                onPress={removeStore}
+              >
+                重置…
+              </Button>
+            </Tooltip>
+          </ControlSlot>
         </SettingRow>
       </SectionCard>
 

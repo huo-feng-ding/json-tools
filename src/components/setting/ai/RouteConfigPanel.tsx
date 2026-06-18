@@ -6,6 +6,7 @@ import { Icon } from "@iconify/react";
 import { ROUTE_LABEL } from "./aiRoutes";
 import { ModelListTable } from "./ModelListTable";
 import { TestConnectionBar, type TestResult } from "./TestConnection";
+import { FormField, InlineCode } from "../settingPrimitives";
 
 import SearchableSelect from "@/components/SearchableSelect/SearchableSelect.tsx";
 import ExternalLink from "@/components/ExternalLink";
@@ -83,22 +84,18 @@ export function RouteConfigPanel(props: RouteConfigPanelProps) {
   );
 }
 
-type ConfigCardProps = { children: ReactNode };
-
-function ConfigCard({ children }: ConfigCardProps) {
-  return (
-    <div className="rounded-2xl border border-default-200 bg-background p-4 shadow-sm backdrop-blur-sm sm:p-5">
-      {children}
-    </div>
-  );
+function ConfigSection({ children }: { children: ReactNode }) {
+  return <div className="space-y-4">{children}</div>;
 }
 
 function PromoBanner() {
   return (
-    <div className="mb-5 rounded-xl border border-primary/20 bg-primary/10 p-4 shadow-inner">
+    <div className="rounded-lg border border-primary/20 bg-primary/10 p-3">
       <div className="flex items-center gap-2.5">
         <Icon className="text-primary" icon="solar:star-bold" width={20} />
-        <span className="font-medium">SSOOAI API 服务</span>
+        <span className="text-[13px] font-medium text-primary">
+          SSOOAI API 服务
+        </span>
       </div>
       <p className="mt-2 text-xs text-default-700">
         SSOOAI 提供更稳定的 API 服务和多种先进模型。 访问{" "}
@@ -124,7 +121,7 @@ function DefaultRouteConfig({
   testResult: TestResult | null;
 }) {
   return (
-    <ConfigCard>
+    <ConfigSection>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-default-600">
         <Icon className="text-primary" icon="solar:star-bold" width={18} />
         默认模型: <span className="font-medium">DeepSeek V4 Pro</span>
@@ -145,7 +142,7 @@ function DefaultRouteConfig({
         testing={testing}
         onTest={onTest}
       />
-    </ConfigCard>
+    </ConfigSection>
   );
 }
 
@@ -164,16 +161,10 @@ function SsooaiRouteConfig(props: RouteConfigPanelProps) {
   } = props;
 
   return (
-    <ConfigCard>
+    <ConfigSection>
       <PromoBanner />
 
-      <div className="mb-4">
-        <label
-          className="mb-2 block text-sm font-medium"
-          htmlFor="ssooai-api-key"
-        >
-          API 密钥
-        </label>
+      <FormField id="ssooai-api-key" icon="solar:key-bold" label="API 密钥">
         <Input
           className="w-full"
           id="ssooai-api-key"
@@ -184,7 +175,7 @@ function SsooaiRouteConfig(props: RouteConfigPanelProps) {
           variant="bordered"
           onChange={(e) => onConfigureApiKey("ssooai", e.target.value)}
         />
-      </div>
+      </FormField>
 
       <TestConnectionBar
         disabled={testing || !ssooaiRoute.apiKey || !testModelSsooai}
@@ -207,7 +198,7 @@ function SsooaiRouteConfig(props: RouteConfigPanelProps) {
         onRefresh={onRefreshSsooaiModels}
         onRemove={onRemoveSsooaiModel}
       />
-    </ConfigCard>
+    </ConfigSection>
   );
 }
 
@@ -224,15 +215,8 @@ function UtoolsRouteConfig(props: RouteConfigPanelProps) {
   } = props;
 
   return (
-    <ConfigCard>
-      <div className="mb-4">
-        <label
-          className="mb-2 flex items-center gap-2 text-sm font-medium"
-          htmlFor="utools-model"
-        >
-          <Icon className="text-primary" icon="solar:layers-bold" width={16} />
-          选择模型
-        </label>
+    <ConfigSection>
+      <FormField id="utools-model" icon="solar:layers-bold" label="选择模型">
         <SearchableSelect
           className="w-full"
           id="utools-model"
@@ -241,7 +225,7 @@ function UtoolsRouteConfig(props: RouteConfigPanelProps) {
           selectedValue={utoolsRoute.model}
           onChange={(value) => onConfigureUtoolsModel(value)}
         />
-      </div>
+      </FormField>
 
       <TestConnectionBar
         disabled={testing || !isUtoolsAvailable || !testModelUtools}
@@ -258,7 +242,7 @@ function UtoolsRouteConfig(props: RouteConfigPanelProps) {
         />
       </TestConnectionBar>
 
-      <div className="mt-4 rounded-xl border border-warning/20 bg-warning/10 p-3 text-xs text-default-700">
+      <div className="rounded-lg border border-warning/20 bg-warning/10 p-3 text-xs text-default-700">
         <div className="flex items-center gap-2">
           <Icon
             className="text-warning"
@@ -272,7 +256,7 @@ function UtoolsRouteConfig(props: RouteConfigPanelProps) {
           团队维护，提供更稳定的服务和更多模型选择，但需要付费使用。
         </p>
       </div>
-    </ConfigCard>
+    </ConfigSection>
   );
 }
 
@@ -292,8 +276,8 @@ function CustomRouteConfig(props: RouteConfigPanelProps) {
   } = props;
 
   return (
-    <ConfigCard>
-      <div className="mb-5 rounded-xl border border-primary/20 bg-primary/10 p-4 shadow-inner">
+    <ConfigSection>
+      <div className="rounded-lg border border-primary/20 bg-primary/10 p-3">
         <div className="flex items-center gap-2.5">
           <Icon
             className="text-primary"
@@ -304,21 +288,12 @@ function CustomRouteConfig(props: RouteConfigPanelProps) {
         </div>
         <p className="mt-2 text-xs text-default-700">
           推荐使用 SSOOAI API 作为私有线路，填入 API 地址：
-          <code className="ml-1 rounded-md bg-default-100 px-2 py-1 font-mono">
-            https://api.ssooai.com/v1
-          </code>
-          ， 注册即可获得免费额度。高稳定性、低延迟、更实惠的价格！
+          <InlineCode>https://api.ssooai.com/v1</InlineCode>
+          ，注册即可获得免费额度。高稳定性、低延迟、更实惠的价格。
         </p>
       </div>
 
-      <div className="mb-4">
-        <label
-          className="mb-2 flex items-center gap-2 text-sm font-medium"
-          htmlFor="api-url"
-        >
-          <Icon className="text-primary" icon="solar:link-bold" width={16} />
-          API 地址
-        </label>
+      <FormField id="api-url" icon="solar:link-bold" label="API 地址">
         <Input
           className="w-full"
           id="api-url"
@@ -328,16 +303,9 @@ function CustomRouteConfig(props: RouteConfigPanelProps) {
           variant="bordered"
           onChange={(e) => onConfigureProxyUrl(e.target.value)}
         />
-      </div>
+      </FormField>
 
-      <div className="mb-4">
-        <label
-          className="mb-2 flex items-center gap-2 text-sm font-medium"
-          htmlFor="api-key"
-        >
-          <Icon className="text-primary" icon="solar:key-bold" width={16} />
-          API 密钥
-        </label>
+      <FormField id="api-key" icon="solar:key-bold" label="API 密钥">
         <Input
           className="w-full"
           id="api-key"
@@ -348,7 +316,7 @@ function CustomRouteConfig(props: RouteConfigPanelProps) {
           variant="bordered"
           onChange={(e) => onConfigureApiKey("custom", e.target.value)}
         />
-      </div>
+      </FormField>
 
       <TestConnectionBar
         disabled={
@@ -376,6 +344,6 @@ function CustomRouteConfig(props: RouteConfigPanelProps) {
         onRefresh={onRefreshCustomModels}
         onRemove={onRemoveCustomModel}
       />
-    </ConfigCard>
+    </ConfigSection>
   );
 }

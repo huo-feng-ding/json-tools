@@ -4,6 +4,7 @@ import { devtools, subscribeWithSelector } from "zustand/middleware";
 import { Content, Mode, JSONContent, TextContent } from "vanilla-jsoneditor-cn";
 
 import { useSettingsStore } from "./useSettingsStore";
+import type { Tool } from "./useToolboxStore";
 
 import { StorageManager } from "@/lib/storage/StorageManager";
 import { getSyncManager } from "@/lib/storage/MultiWindowSyncManager";
@@ -29,11 +30,20 @@ export interface TabHistoryItem {
   contentHash?: string; // 截断内容的轻量指纹，用于去重
 }
 
+export type TabKind = "json" | "toolbox" | "tool";
+
+export interface ToolTabExtraData extends Record<string, any> {
+  toolId: string;
+  toolIcon: string;
+  toolPath: string;
+}
+
 // 存储管理器实例 - 使用共享的 syncManager
 const syncManager = getSyncManager();
 const storageManager = new StorageManager(syncManager);
 
 export interface TabItem {
+  kind: TabKind;
   key: string;
   uuid: string; // Tab 的唯一标识符
   title: string;
@@ -70,6 +80,8 @@ interface TabStore {
     content: string | undefined,
     extraData?: Record<string, any>,
   ) => void;
+  openToolboxTab: () => string;
+  addToolTab: (tool: Tool) => string;
   setTabContent: (key: string, content: string) => void;
   updateTabContent: (key: string, content: string) => void;
   setTabModifiedValue: (key: string, content: string) => void;
@@ -124,6 +136,7 @@ export const useTabStore = create<TabStore>()(
             const newTabKey = `${state.nextKey}`;
             const uuid = generateUUID();
             const newTab: TabItem = {
+              kind: "json",
               key: `${state.nextKey}`,
               uuid,
               title: title ? title : `New Tab ${newTabKey}`,
@@ -156,6 +169,7 @@ export const useTabStore = create<TabStore>()(
           set((state) => {
             const settings = useSettingsStore.getState();
             const defaultTab = {
+              kind: "json" as const,
               key: "1",
               uuid: generateUUID(),
               title: "New Tab 1",
@@ -183,6 +197,93 @@ export const useTabStore = create<TabStore>()(
               tabs,
             };
           });
+        },
+        openToolboxTab: () => {
+          const existingTab = get().tabs.find((tab) => tab.kind === "toolbox");
+
+          if (existingTab) {
+            set({ activeTabKey: existingTab.key });
+
+            return existingTab.key;
+          }
+
+          const newTabKey = `${get().nextKey}`;
+
+          set((state) => {
+            const settings = useSettingsStore.getState();
+            const toolboxTab: TabItem = {
+              kind: "toolbox",
+              key: newTabKey,
+              uuid: generateUUID(),
+              title: "工具箱",
+              content: "",
+              vanillaMode: Mode.tree,
+              closable: true,
+              vanillaVersion: 0,
+              monacoVersion: 0,
+              history: [],
+              editorSettings: {
+                fontSize: 14,
+                language: "json",
+                indentSize: settings.defaultIndentSize,
+                timestampDecoratorsEnabled: true,
+                base64DecoratorsEnabled: true,
+                unicodeDecoratorsEnabled: true,
+                urlDecoratorsEnabled: true,
+                imageDecoratorsEnabled: true,
+              },
+            };
+
+            return {
+              tabs: [...state.tabs, toolboxTab],
+              activeTabKey: newTabKey,
+              nextKey: state.nextKey + 1,
+            };
+          });
+
+          return newTabKey;
+        },
+        addToolTab: (tool: Tool) => {
+          const newTabKey = `${get().nextKey}`;
+
+          set((state) => {
+            const settings = useSettingsStore.getState();
+            const toolTab: TabItem = {
+              kind: "tool",
+              key: newTabKey,
+              uuid: generateUUID(),
+              title: tool.name,
+              content: "",
+              vanillaMode: Mode.tree,
+              closable: true,
+              vanillaVersion: 0,
+              monacoVersion: 0,
+              history: [],
+              extraData: {
+                toolId: tool.id,
+                toolIcon: tool.icon,
+                toolPath: tool.path,
+              } satisfies ToolTabExtraData,
+              editorSettings: {
+                fontSize: 14,
+                language: "json",
+                indentSize: settings.defaultIndentSize,
+                timestampDecoratorsEnabled: true,
+                base64DecoratorsEnabled: true,
+                unicodeDecoratorsEnabled: true,
+                urlDecoratorsEnabled: true,
+                imageDecoratorsEnabled: true,
+              },
+            };
+
+            return {
+              tabs: [...state.tabs, toolTab],
+              activeTabKey: newTabKey,
+              nextKey: state.nextKey + 1,
+            };
+          });
+
+          return newTabKey;
         },
         setMonacoVersion: (key: string, version: number) =>
           set((state) => {
@@ -308,7 +409,7 @@ export const useTabStore = create<TabStore>()(
           const data: Record<string, any> = {};
 
           if (tabs) {
-            data.tabs = tabs;
+            data.tabs = tabs.map(normalizePersistedTab);
           } else {
             get().initTab();
           }
@@ -428,6 +529,7 @@ export const useTabStore = create<TabStore>()(
           set(() => {
             const settings = useSettingsStore.getState();
             const defaultTab = {
+              kind: "json" as const,
               key: "1",
               uuid: generateUUID(),
               title: "New Tab 1",
@@ -691,6 +793,11 @@ export const useTabStore = create<TabStore>()(
 const DB_TABS = "tabs";
 const DB_TAB_ACTIVE_KEY = "tabs_active_key";
 const DB_TAB_NEXT_KEY = "tabs_next_key";
+
+const normalizePersistedTab = (tab: TabItem): TabItem => ({
+  ...tab,
+  kind: tab.kind || "json",
+});
 
 let tabsSaveTimeout: NodeJS.Timeout;
 let tabActiveSaveTimeout: NodeJS.Timeout;

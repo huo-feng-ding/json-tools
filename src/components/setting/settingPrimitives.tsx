@@ -39,12 +39,12 @@ interface SectionHeaderProps {
 /** 每个 tab 顶部的统一标题（无图标块，纯文字，更克制） */
 export function SectionHeader({ title, description }: SectionHeaderProps) {
   return (
-    <div className="mb-5 sm:mb-6">
-      <h2 className="text-xl font-bold tracking-tight text-default-900 sm:text-2xl">
+    <div className="mb-5">
+      <h2 className="text-lg font-semibold tracking-normal text-default-900 sm:text-xl">
         {title}
       </h2>
       {description ? (
-        <p className="mt-1.5 text-sm text-default-500 sm:text-base">
+        <p className="mt-1 text-[12.5px] leading-relaxed text-default-500 sm:text-[13px]">
           {description}
         </p>
       ) : null}
@@ -59,7 +59,7 @@ interface GroupLabelProps {
 /** 分组小标题：小号大写灰字，仿 macOS 设置的分组标签 */
 export function GroupLabel({ children }: GroupLabelProps) {
   return (
-    <h4 className="mb-2 mt-6 px-4 text-xs font-semibold uppercase tracking-wide text-default-400 first:mt-0">
+    <h4 className="mb-2 mt-5 px-3 text-[11.5px] font-medium text-default-500 first:mt-0">
       {children}
     </h4>
   );
@@ -83,7 +83,7 @@ export function SectionCard({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-xl border border-default-200/70 bg-background shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:bg-default-50/30",
+        "overflow-hidden rounded-lg border border-default-200/70 bg-background shadow-[0_1px_2px_rgba(15,23,42,0.04)] dark:bg-default-50/30",
         divided && "divide-y divide-default-200/60",
         className,
       )}
@@ -115,28 +115,32 @@ export function SettingRow({
   return (
     <div
       className={cn(
-        "flex min-h-[54px] flex-wrap items-center justify-between gap-x-4 gap-y-2.5 px-4 py-3 transition-colors hover:bg-default-100/40 sm:px-5",
+        "flex min-h-[60px] flex-col gap-3 px-3 py-3 transition-colors hover:bg-default-50/80 sm:flex-row sm:items-center sm:justify-between sm:px-4",
         className,
       )}
     >
-      <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <div
           className={cn(
-            "flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-[8px]",
+            "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
             TONE_CLASSES[tone],
           )}
         >
           <Icon icon={icon} width={18} />
         </div>
         <div className="min-w-0">
-          <p className="font-medium text-default-900">{title}</p>
+          <p className="text-[13px] font-medium text-default-900">{title}</p>
           {description ? (
-            <p className="mt-0.5 text-[13px] text-default-500">{description}</p>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-default-500">
+              {description}
+            </p>
           ) : null}
         </div>
       </div>
       {children ? (
-        <div className="flex flex-shrink-0 items-center gap-2">{children}</div>
+        <div className="flex w-full min-w-0 items-center justify-start gap-2 sm:w-auto sm:justify-end">
+          {children}
+        </div>
       ) : null}
     </div>
   );
@@ -161,7 +165,7 @@ export function InfoNote({
   return (
     <div
       className={cn(
-        "mx-4 my-3 flex items-start gap-3 rounded-xl border p-3.5 sm:mx-5",
+        "mx-3 my-3 flex items-start gap-3 rounded-lg border p-3 sm:mx-4",
         tone === "warning"
           ? "border-warning/20 bg-warning/10"
           : tone === "primary"
@@ -182,7 +186,7 @@ export function InfoNote({
         icon={icon}
         width={18}
       />
-      <div className="text-[13px] leading-relaxed text-default-700">
+      <div className="text-[12px] leading-relaxed text-default-700">
         {title ? (
           <p
             className={cn(
@@ -221,7 +225,7 @@ export function ChoiceCard({
     <div
       aria-pressed={selected}
       className={cn(
-        "relative cursor-pointer rounded-xl border-2 p-3.5 transition-all duration-200",
+        "relative cursor-pointer rounded-lg border p-3 transition-colors",
         selected
           ? "border-primary bg-primary/5 shadow-sm"
           : "border-default-200/70 bg-background hover:border-default-300 hover:bg-default-50/50",
@@ -239,5 +243,75 @@ export function ChoiceCard({
       ) : null}
       {children}
     </div>
+  );
+}
+
+interface ControlSlotProps {
+  children: ReactNode;
+  className?: string;
+  align?: "end" | "stretch";
+}
+
+export function ControlSlot({
+  children,
+  className,
+  align = "end",
+}: ControlSlotProps) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-2",
+        align === "end"
+          ? "w-full justify-start sm:w-auto sm:justify-end"
+          : "w-full flex-wrap justify-start sm:w-auto sm:justify-end",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+interface FormFieldProps {
+  id: string;
+  label: string;
+  icon?: string;
+  description?: ReactNode;
+  children: ReactNode;
+}
+
+export function FormField({
+  id,
+  label,
+  icon,
+  description,
+  children,
+}: FormFieldProps) {
+  return (
+    <div className="space-y-2">
+      <label
+        className="flex items-center gap-2 text-[12.5px] font-medium text-default-800"
+        htmlFor={id}
+      >
+        {icon ? (
+          <Icon className="text-default-500" icon={icon} width={15} />
+        ) : null}
+        {label}
+      </label>
+      {children}
+      {description ? (
+        <div className="text-xs leading-relaxed text-default-500">
+          {description}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function InlineCode({ children }: { children: ReactNode }) {
+  return (
+    <code className="rounded bg-default-100 px-1.5 py-0.5 font-mono text-[11px] text-default-700">
+      {children}
+    </code>
   );
 }

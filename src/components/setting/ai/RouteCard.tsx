@@ -35,10 +35,10 @@ export function RouteCard({
   const enabled = isSelected && available;
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-xl border border-default-200/70 bg-background p-3.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] transition-colors dark:bg-default-50/30 sm:p-4">
+    <div className="flex min-h-[138px] flex-col justify-between gap-3 rounded-lg border border-default-200/70 bg-background p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-colors hover:border-default-300 dark:bg-default-50/30 sm:p-4">
       <div className="flex items-center gap-3">
         <div
-          className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg"
           style={{
             backgroundColor: `${brand.color}1f`,
             color: brand.color,
@@ -47,16 +47,16 @@ export function RouteCard({
           <Icon icon={ROUTE_ICON[routeType]} width={20} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[14px] font-semibold text-default-900">
+          <div className="text-[13px] font-semibold text-default-900">
             {ROUTE_LABEL[routeType]}
           </div>
-          <div className="mt-0.5 text-[11.5px] text-default-500">
+          <div className="mt-0.5 text-[11px] text-default-500">
             {description}
           </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         {!available ? (
           <span className="rounded-full bg-default-200/60 px-2 py-0.5 text-[10.5px] font-semibold text-default-400">
             ● 不可用

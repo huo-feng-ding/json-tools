@@ -17,10 +17,12 @@ import { items, SidebarKeys } from "@/components/sidebar/Items.tsx";
 import { ThemeSwitch } from "@/components/button/ThemeSwitch.tsx";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { useSettingsStore } from "@/store/useSettingsStore";
+import { useTabStore } from "@/store/useTabStore";
 import { getFontSizeConfig } from "@/styles/fontSize";
 
 function RootLayout({ children }: { children: React.ReactNode }) {
   const sidebarStore = useSidebarStore();
+  const { tabs, activeTabKey, setActiveTab, addTab } = useTabStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -31,6 +33,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
   const handleSidebarSelect = (
     key: string | React.SyntheticEvent<HTMLUListElement>,
   ) => {
+    const selectedKey = key as SidebarKeys;
     let isContinue = false;
 
     items.forEach((item) => {
@@ -44,10 +47,33 @@ function RootLayout({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const isEditorView = [
+      SidebarKeys.textView,
+      SidebarKeys.treeView,
+      SidebarKeys.diffView,
+      SidebarKeys.tableView,
+    ].includes(selectedKey);
+
+    if (isEditorView) {
+      const currentTab = tabs.find((tab) => tab.key === activeTabKey);
+
+      if (currentTab && currentTab.kind !== "json") {
+        const lastJsonTab = [...tabs]
+          .reverse()
+          .find((tab) => tab.kind === "json");
+
+        if (lastJsonTab) {
+          setActiveTab(lastJsonTab.key);
+        } else {
+          addTab(undefined, undefined);
+        }
+      }
+    }
+
     if (location.pathname !== "/") {
       navigate("/");
     }
-    sidebarStore.updateClickSwitchKey(key as SidebarKeys);
+    sidebarStore.updateClickSwitchKey(selectedKey);
   };
 
   // 折叠/展开：同时持久化到设置 store（修复此前折叠状态不保存的问题）
@@ -65,12 +91,14 @@ function RootLayout({ children }: { children: React.ReactNode }) {
   // 编辑器四视图仍由 store 的 activeKey 驱动 renderEditor()，高亮与编辑器选择解耦。
   const currentKey = React.useMemo(() => {
     const pathname = location.pathname;
+    const currentTab = tabs.find((tab) => tab.key === activeTabKey);
 
     if (pathname === "/settings") return SidebarKeys.settings;
     if (pathname.startsWith("/toolbox")) return SidebarKeys.toolbox;
+    if (currentTab && currentTab.kind !== "json") return SidebarKeys.toolbox;
 
     return sidebarStore.activeKey;
-  }, [location.pathname, sidebarStore.activeKey]);
+  }, [activeTabKey, location.pathname, sidebarStore.activeKey, tabs]);
 
   useEffect(() => {
     const init = async () => {

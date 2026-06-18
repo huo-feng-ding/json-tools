@@ -51,21 +51,21 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex h-full w-full flex-1 bg-default-50/80 backdrop-blur-sm dark:bg-default-50/5">
-      <div className="flex h-full flex-row overflow-hidden">
+    <div className="flex h-full w-full min-w-0 flex-1 bg-default-50 dark:bg-default-50/5">
+      <div className="flex h-full w-full min-w-0 flex-row overflow-hidden">
         <SettingsSidebar
           activeTab={activeTab}
           items={MENU_ITEMS}
           onSelect={setActiveTab}
         />
 
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5">
+        <div className="min-w-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5 md:px-6 md:py-6">
           <motion.div
             key={activeTab}
             animate={{ opacity: 1, y: 0 }}
-            className="mx-auto w-full max-w-5xl pb-6 md:pb-8"
-            initial={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.3 }}
+            className="mx-auto w-full max-w-[960px] pb-8"
+            initial={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
           >
             {renderContent()}
           </motion.div>

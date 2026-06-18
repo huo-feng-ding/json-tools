@@ -27,9 +27,12 @@ export function TestConnectionBar({
 }: TestConnectionBarProps) {
   return (
     <>
-      <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
-        {children}
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        {children ? (
+          <div className="min-w-0 flex-1 sm:flex-none">{children}</div>
+        ) : null}
         <Button
+          className="w-full sm:w-auto"
           color="primary"
           isDisabled={disabled}
           isLoading={testing}
@@ -55,7 +58,7 @@ export function TestResultView({ result }: { result?: TestResult | null }) {
 
   return (
     <div
-      className={`mt-3 rounded-xl border p-3 text-sm ${
+      className={`mt-3 rounded-lg border p-3 text-sm ${
         result.success
           ? "border-success/20 bg-success/15 text-success"
           : "border-danger/20 bg-danger/15 text-danger"

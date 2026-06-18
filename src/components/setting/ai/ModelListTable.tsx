@@ -22,12 +22,12 @@ export function ModelListTable({
 }: ModelListTableProps) {
   return (
     <div className="mt-5 border-t border-default-200 pt-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h4 className="flex items-center gap-2 text-sm font-medium">
           <Icon className="text-primary" icon="solar:layers-bold" width={16} />
           模型列表
         </h4>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             color="primary"
             radius="full"
@@ -54,19 +54,25 @@ export function ModelListTable({
         </div>
       </div>
 
-      <div className="max-h-96 overflow-auto rounded-xl border border-default-200 shadow-inner">
+      <div className="max-h-96 max-w-full overflow-auto rounded-lg border border-default-200 bg-background">
         {models.length === 0 ? (
           <div className="p-4 text-center text-sm text-default-500">
             暂无模型，请刷新或检查API密钥
           </div>
         ) : (
           <div className="min-w-full overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[560px]">
               <thead className="sticky top-0 z-10 bg-default-100 shadow-sm">
                 <tr className="text-xs text-default-500">
-                  <th className="p-3 text-left">名称</th>
-                  <th className="p-3 text-left">显示名称</th>
-                  <th className="p-3 text-center">操作</th>
+                  <th className="p-3 text-left text-xs font-medium text-default-500">
+                    名称
+                  </th>
+                  <th className="p-3 text-left text-xs font-medium text-default-500">
+                    显示名称
+                  </th>
+                  <th className="p-3 text-center text-xs font-medium text-default-500">
+                    操作
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -77,8 +83,12 @@ export function ModelListTable({
                       index % 2 === 0 ? "bg-default-50/80" : "bg-default-100/20"
                     }`}
                   >
-                    <td className="p-3">{item.value}</td>
-                    <td className="p-3">{item.label}</td>
+                    <td className="max-w-[260px] truncate p-3">
+                      {item.value}
+                    </td>
+                    <td className="max-w-[260px] truncate p-3">
+                      {item.label}
+                    </td>
                     <td className="p-3 text-center">
                       <Button
                         isIconOnly

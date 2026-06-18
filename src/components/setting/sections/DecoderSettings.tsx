@@ -1,6 +1,7 @@
 import { Switch } from "@heroui/react";
 
 import {
+  ControlSlot,
   InfoNote,
   SectionCard,
   SectionHeader,
@@ -127,12 +128,14 @@ export function DecoderSettings() {
             title={d.title}
             tone={d.tone}
           >
-            <Switch
-              color="success"
-              isSelected={enabledMap[d.id]}
-              size="lg"
-              onValueChange={(value) => handleToggle(d.id, value)}
-            />
+            <ControlSlot>
+              <Switch
+                color="success"
+                isSelected={enabledMap[d.id]}
+                size="lg"
+                onValueChange={(value) => handleToggle(d.id, value)}
+              />
+            </ControlSlot>
           </SettingRow>
         ))}
 
