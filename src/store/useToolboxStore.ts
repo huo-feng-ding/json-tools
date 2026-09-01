@@ -54,9 +54,19 @@ const demoTools: Tool[] = [
     id: "jsonKeyNaming",
     name: "JSON 字段命名转换",
     icon: "solar:text-selection-bold",
-    description: "JSON字段命名风格转换，支持小驼峰、大驼峰、下划线命名互转",
+    description:
+      "JSON字段命名风格转换，支持小驼峰、大驼峰、下划线、短横线和常量命名互转",
     path: "/toolbox/jsonKeyNaming",
     category: ["数据处理"],
+  },
+  {
+    id: "encodingConverter",
+    name: "编码转换",
+    icon: "solar:code-square-bold",
+    description:
+      "实时转换 Base64、Base64URL、URL、Unicode、Hex 和 Binary 编码",
+    path: "/toolbox/encodingConverter",
+    category: ["编码转换", "数据处理"],
   },
 ];
 
