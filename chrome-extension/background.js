@@ -3,12 +3,14 @@
  * 负责监听标签页更新和检测JSON内容
  */
 
+const PENDING_JSON_KEY = 'datamorph:pendingJson';
+const AUTO_OPEN_JSON_KEY = 'autoOpenJson';
+
 class ChromeExtensionListener {
   constructor() {
     this.isInitialized = false;
     this.jsonToolsUrl = null;
   }
-
   /**
    * 初始化后台脚本
    */
@@ -21,12 +23,6 @@ class ChromeExtensionListener {
     // 监听标签页更新事件
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       this.handleTabUpdate(tabId, changeInfo, tab);
-    });
-
-    // 监听来自content script的消息
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      this.handleMessage(request, sender, sendResponse);
-      return true; // 保持消息通道开放以支持异步响应
     });
 
     // 监听插件图标点击事件
@@ -52,6 +48,11 @@ class ChromeExtensionListener {
         return;
       }
 
+      // 选项页开关：关闭时保持浏览器原样显示
+      if (!(await this.isAutoOpenJsonEnabled())) {
+        return;
+      }
+
       // 检查页面是否包含JSON数据
       const hasJson = await this.checkPageForJson(tabId);
       
@@ -68,6 +69,19 @@ class ChromeExtensionListener {
       }
     } catch (error) {
       console.error('处理标签页更新时发生错误:', error);
+    }
+  }
+
+  /**
+   * 读取"自动打开 JSON 页面"开关，默认开启
+   */
+  async isAutoOpenJsonEnabled() {
+    try {
+      const stored = await chrome.storage.local.get(AUTO_OPEN_JSON_KEY);
+      return stored[AUTO_OPEN_JSON_KEY] !== false;
+    } catch (error) {
+      console.error('读取自动打开开关失败:', error);
+      return true;
     }
   }
 
@@ -168,34 +182,101 @@ class ChromeExtensionListener {
   }
 
   /**
-   * 在当前标签页中打开JSON Tools页面并传递数据
+   * 打开JSON Tools并传递数据：
+   * 已打开时在已有页面中新建标签页，否则接管当前标签页。
    */
   async openJsonToolsWithJson(jsonData, sourceUrl, tabId) {
     try {
-      const jsonString = typeof jsonData.data === 'string' 
-        ? jsonData.data 
+      const jsonString = typeof jsonData.data === 'string'
+        ? jsonData.data
         : JSON.stringify(jsonData.data, null, 2);
 
-      // 直接在当前标签页中打开JSON Tools页面
+      // chrome.tabs.sendMessage 只投递给内容脚本，扩展页面收不到；
+      // 先落盘，页面启动或运行中自行读取，不依赖 2 秒竞态。
+      await chrome.storage.session.set({
+        [PENDING_JSON_KEY]: {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          type: 'regex',
+          payload: jsonString,
+          sourceUrl: sourceUrl,
+          title: jsonData.title,
+          createdAt: Date.now()
+        }
+      });
+
+      // 已有 JSON Tools 页面时保留第三方标签页，
+      // 由已打开的页面通过 chrome.storage.onChanged 新建标签页展示数据。
+      const openTab = await this.findOpenJsonToolsTab(tabId);
+
+      if (openTab) {
+        await this.focusJsonToolsTab(openTab);
+        console.log(`已在已打开的 JSON Tools 中新建标签页: ${sourceUrl}`);
+        return;
+      }
+
+      // 未打开时保持原行为：当前标签页直接打开JSON Tools页面
       await chrome.tabs.update(tabId, {
-        url: chrome.runtime.getURL('index.html'),
+        url: this.jsonToolsUrl,
+        active: true
+      });
+    } catch (error) {
+      console.error('打开JSON Tools页面时发生错误:', error);
+    }
+  }
+
+  /**
+   * 查找已打开的 JSON Tools 页面标签（排除当前标签页）
+   */
+  async findOpenJsonToolsTab(excludeTabId) {
+    try {
+      // 片段标识符不参与匹配，带 #/ 路由的页面同样能命中
+      const tabs = await chrome.tabs.query({ url: this.jsonToolsUrl });
+      const candidates = tabs.filter(
+        (tab) => typeof tab.id === 'number' && tab.id !== excludeTabId
+      );
+
+      if (candidates.length === 0) {
+        return null;
+      }
+
+      // 优先复用正在显示的页面
+      return candidates.find((tab) => tab.active) || candidates[0];
+    } catch (error) {
+      console.error('查找已打开的 JSON Tools 页面失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 聚焦已打开的 JSON Tools 页面，并确保停留在工作区路由
+   */
+  async focusJsonToolsTab(tab) {
+    try {
+      if (typeof tab.id !== 'number') {
+        return;
+      }
+
+      let hash = '';
+
+      try {
+        hash = new URL(tab.url || '').hash;
+      } catch (error) {
+        hash = '';
+      }
+
+      // 设置页/工具页不展示工作区标签，切回工作区路由
+      const nextUrl = hash && hash !== '#/' ? `${this.jsonToolsUrl}#/` : null;
+
+      await chrome.tabs.update(tab.id, {
+        ...(nextUrl ? { url: nextUrl } : {}),
         active: true
       });
 
-      // 等待页面加载完成后发送数据
-      setTimeout(() => {
-        chrome.tabs.sendMessage(tabId, {
-          type: 'UPDATE_JSON_DATA',
-          payload: {
-            type: 'regex',
-            payload: jsonString,
-            sourceUrl: sourceUrl,
-            title: jsonData.title
-          }
-        });
-      }, 2000);
+      if (typeof tab.windowId === 'number') {
+        await chrome.windows.update(tab.windowId, { focused: true });
+      }
     } catch (error) {
-      console.error('打开JSON Tools页面时发生错误:', error);
+      console.error('聚焦 JSON Tools 页面时发生错误:', error);
     }
   }
 
@@ -250,51 +331,6 @@ class ChromeExtensionListener {
     }
   }
 
-  /**
-   * 处理来自content script的消息
-   */
-  async handleMessage(request, sender, sendResponse) {
-    // 检查是否为受限页面
-    if (sender.tab && this.isRestrictedUrl(sender.tab.url)) {
-      sendResponse({ success: false, message: '受限页面，无法操作' });
-      return;
-    }
-
-    switch (request.type) {
-      case 'CHECK_JSON':
-        // 手动检查当前页面是否为JSON
-        if (!sender.tab) {
-          sendResponse({ success: false, message: '无法获取页面信息' });
-          return;
-        }
-
-        const hasJson = await this.checkPageForJson(sender.tab.id);
-        if (hasJson) {
-          const jsonData = await this.extractJsonFromPage(sender.tab.id);
-          if (jsonData) {
-            await this.openJsonToolsWithJson(jsonData, sender.tab.url, sender.tab.id);
-            sendResponse({ success: true, message: 'JSON数据已加载到JSON Tools' });
-          } else {
-            sendResponse({ success: false, message: '无法解析JSON数据' });
-          }
-        } else {
-          sendResponse({ success: false, message: '当前页面不包含有效的JSON数据' });
-        }
-        break;
-
-
-
-      case 'GET_EXTENSION_STATUS':
-        sendResponse({ 
-          initialized: this.isInitialized,
-          jsonToolsUrl: this.jsonToolsUrl 
-        });
-        break;
-
-      default:
-        sendResponse({ success: false, message: '未知消息类型' });
-    }
-  }
 }
 
 // 初始化Chrome扩展监听器

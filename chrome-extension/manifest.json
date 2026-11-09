@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "description": "自动检测浏览器中的JSON数据并使用JSON Tools进行可视化展示",
   "permissions": [
-    "activeTab",
     "storage",
     "scripting"
   ],
@@ -15,13 +14,6 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*", "file://*/*"],
-      "js": ["content.js"],
-      "run_at": "document_idle"
-    }
-  ],
   "action": {
     "default_title": "JSON Tools",
     "default_icon": {
@@ -31,16 +23,14 @@
       "512": "pwa-512x512.png"
     }
   },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "icons": {
     "64": "pwa-64x64.png",
     "96": "pwa-96x96.png",
     "192": "pwa-192x192.png",
     "512": "pwa-512x512.png"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["injected.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }

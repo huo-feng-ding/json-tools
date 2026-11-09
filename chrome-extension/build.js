@@ -44,10 +44,6 @@ class ChromeExtensionBuilder {
       console.log('步骤3: 创建扩展特定文件...');
       await this.createExtensionFiles();
 
-      // 5. 更新manifest.json
-      console.log('步骤4: 更新manifest.json...');
-      await this.updateManifest();
-
       console.log('✅ Chrome扩展构建完成！');
       console.log(`📁 扩展目录: ${this.distDir}`);
       console.log('🚀 请在Chrome中加载此目录作为未打包的扩展程序');
@@ -100,7 +96,12 @@ class ChromeExtensionBuilder {
     process.chdir(this.projectRoot);
     
     try {
-      execSync('pnpm build', { stdio: 'inherit' });
+      // 扩展页面不能注册 Service Worker，且 MV3 CSP 禁止内联脚本：
+      // 用扩展专用配置构建，关闭 PWA 插件（见 vite.extension.config.ts）。
+      execSync(
+        'pnpm exec tsc && pnpm exec vite build --config chrome-extension/vite.extension.config.ts',
+        { stdio: 'inherit' }
+      );
     } catch (error) {
       throw new Error('主应用构建失败: ' + error.message);
     }
@@ -140,8 +141,8 @@ class ChromeExtensionBuilder {
     const extensionFiles = [
       'manifest.json',
       'background.js',
-      'content.js',
-      'injected.js'
+      'options.html',
+      'options.js'
     ];
 
     for (const file of extensionFiles) {
@@ -187,32 +188,64 @@ class ChromeExtensionBuilder {
         );
       }
       
-      // 重写处理后的index.html
-      fs.writeFileSync(indexPath, indexContent);
-      
-      console.log('✅ 成功提取Monaco配置到main.js并更新index.html');
+      console.log('✅ 成功提取Monaco配置到main.js');
     } else {
       console.log('⚠️  未找到Monaco环境配置script标签');
     }
-  }
 
-  /**
-   * 更新manifest.json
-   */
-  async updateManifest() {
-    console.log('更新manifest.json...');
+    // MV3 扩展页面的 CSP 为 script-src 'self'，内联脚本会被直接拦截。
+    const inlineScriptPattern =
+      /<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g;
+    let inlineScriptIndex = 0;
 
-    const manifestPath = path.join(this.distDir, 'manifest.json');
-    let manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    indexContent = indexContent.replace(
+      inlineScriptPattern,
+      (match, attrs, body) => {
+        const type = (
+          attrs.match(/\btype\s*=\s*["']([^"']+)["']/i)?.[1] ?? ""
+        ).toLowerCase();
+        const executable =
+          type === "" ||
+          type === "module" ||
+          type === "text/javascript" ||
+          type === "application/javascript";
 
-    // 更新manifest中的路径引用
-    if (manifest.web_accessible_resources) {
-      manifest.web_accessible_resources[0].resources.push('main.js', 'assets/*');
+        if (!executable || body.trim() === "") {
+          return match;
+        }
+
+        const fileName = `inline-script-${inlineScriptIndex}.js`;
+        inlineScriptIndex += 1;
+        fs.writeFileSync(
+          path.join(this.distDir, fileName),
+          body.trim() + "\n"
+        );
+
+        const keptAttrs = attrs.trim();
+        return `<script${keptAttrs ? " " + keptAttrs : ""} src="./${fileName}"></script>`;
+      }
+    );
+
+    const remainingInline = indexContent.match(
+      /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/g
+    );
+    if (remainingInline) {
+      console.warn(
+        `⚠️  index.html 仍包含 ${remainingInline.length} 个内联脚本，MV3 CSP 会拦截`
+      );
     }
 
-    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    // PWA 插件已从扩展构建中移除，不再引用 manifest.webmanifest。
+    indexContent = indexContent.replace(
+      /[ \t]*<link[^>]*rel=["']manifest["'][^>]*>\s*/gi,
+      ""
+    );
 
-    console.log('manifest.json更新完成');
+    fs.writeFileSync(indexPath, indexContent);
+
+    console.log(
+      `✅ 已将 ${inlineScriptIndex} 个内联脚本提取为外部文件并更新index.html`
+    );
   }
 
   /**

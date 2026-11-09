@@ -7,8 +7,6 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:extension": "node chrome-extension/build.js",
-    "test:extension": "node chrome-extension/test-extension.js",
-    "create:extension-icons": "node chrome-extension/create-icons.js",
     "lint": "eslint -c .eslintrc.json ./src/**/**/*.{ts,tsx} --fix",
     "test:key-naming": "tsx src/utils/keyNamingConverter.test.ts",
     "test:encoding-converter": "tsx src/utils/encodingConverter.test.ts",

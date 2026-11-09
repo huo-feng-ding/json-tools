@@ -13,6 +13,7 @@ import "@/styles/globals.css";
 import DefaultLayout from "@/layouts/default";
 import { FontSizeManager } from "@/components/FontSizeManager";
 import UtoolsListener from "@/services/utoolsListener";
+import ChromeExtensionListener from "@/services/chromeExtensionListener";
 import { PWAUpdateManager } from "@/components/pwa/PWAUpdateManager";
 import { TimeZoneDialog } from "@/components/setting/TimeZoneSelector";
 import { ThemeColorManager } from "@/components/ThemeColorManager";
@@ -51,6 +52,7 @@ const initializeUtoolsListener = () => {
 async function startApp() {
   await initializeStorage();
   initializeUtoolsListener();
+  ChromeExtensionListener.getInstance().initialize();
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
       <HashRouter

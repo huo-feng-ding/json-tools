@@ -1,5 +1,7 @@
 import { useTabStore } from "@/store/useTabStore";
 
+const PENDING_JSON_STORAGE_KEY = "datamorph:pendingJson";
+
 /**
  * Chrome扩展事件监听器管理
  * 
@@ -10,7 +12,7 @@ import { useTabStore } from "@/store/useTabStore";
 class ChromeExtensionListener {
   private static instance: ChromeExtensionListener;
   private isInitialized: boolean = false;
-  private editorRefs: Record<string, any> = {};
+  private lastHandledId: string | null = null;
 
   private constructor() {}
 
@@ -26,13 +28,6 @@ class ChromeExtensionListener {
   }
 
   /**
-   * 设置编辑器引用
-   */
-  public setEditorRefs(editorRefs: Record<string, any>): void {
-    this.editorRefs = editorRefs;
-  }
-
-  /**
    * 初始化监听器
    */
   public initialize(): void {
@@ -41,38 +36,64 @@ class ChromeExtensionListener {
     }
 
     if (typeof window !== "undefined") {
-      // 监听来自Chrome扩展的消息
-      this.setupMessageListener();
+      // 页面已打开时无需重新加载即可接收 background 新写入的 JSON
+      this.setupPendingJsonWatch();
+      void this.consumePendingJson();
       this.isInitialized = true;
       console.log("Chrome扩展监听器已初始化");
     }
   }
 
   /**
-   * 设置消息监听器
+   * 监听 storage.session 中的待处理 JSON。
+   * 已打开的页面由 background 聚焦后会收到变更通知并即时新建标签页。
    */
-  private setupMessageListener(): void {
-    // 监听来自Chrome扩展的消息
-    window.addEventListener('message', (event) => {
-      // 确保消息来源可信
-      if (event.source !== window) {
+  private setupPendingJsonWatch(): void {
+    if (
+      typeof chrome === "undefined" ||
+      !chrome.storage?.session ||
+      !chrome.storage.onChanged
+    ) {
+      return;
+    }
+
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "session") {
         return;
       }
 
-      if (event.data && event.data.type === 'CHROME_EXTENSION_MESSAGE') {
-        this.handleExtensionMessage(event.data.payload);
+      if (!changes[PENDING_JSON_STORAGE_KEY]?.newValue) {
+        return;
       }
-    });
 
-    // 如果是在Chrome扩展环境中，也监听chrome.runtime消息
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
-      chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-        if (request.type === 'UPDATE_JSON_DATA') {
-          this.handleExtensionMessage(request.payload);
-          sendResponse({ success: true });
-        }
-        return true;
-      });
+      void this.consumePendingJson();
+    });
+  }
+
+  /**
+   * 读取 background 写入的待处理 JSON（storage.session）。
+   * 扩展页面不能接收 chrome.tabs.sendMessage，所以用落盘交接而非定时推送。
+   */
+  private async consumePendingJson(): Promise<void> {
+    const storage =
+      typeof chrome !== "undefined" ? chrome.storage?.session : undefined;
+
+    if (!storage) {
+      return;
+    }
+
+    try {
+      const result = await storage.get(PENDING_JSON_STORAGE_KEY);
+      const pending = result?.[PENDING_JSON_STORAGE_KEY];
+
+      if (!pending) {
+        return;
+      }
+
+      await storage.remove(PENDING_JSON_STORAGE_KEY);
+      this.handleExtensionMessage(pending);
+    } catch (error) {
+      console.error("读取Chrome扩展待处理JSON失败:", error);
     }
   }
 
@@ -80,102 +101,60 @@ class ChromeExtensionListener {
    * 处理Chrome扩展消息
    */
   private handleExtensionMessage(data: any): void {
+    if (
+      !data ||
+      data.type !== "regex" ||
+      typeof data.payload !== "string" ||
+      data.payload === ""
+    ) {
+      return;
+    }
+
+    const handledId = typeof data.id === "string" ? data.id : null;
+
+    if (handledId && this.lastHandledId === handledId) {
+      return;
+    }
+
+    const tabStore = useTabStore.getState();
+
+    if (!tabStore.hydrated) {
+      const unsubscribe = useTabStore.subscribe((state) => {
+        if (state.hydrated) {
+          unsubscribe();
+          this.handleExtensionMessage(data);
+        }
+      });
+      return;
+    }
+
+    if (handledId) {
+      this.lastHandledId = handledId;
+    }
+
     try {
       console.log("Chrome扩展消息:", data);
-      
-      if (data.type === "regex" && data.payload != "") {
-        const tabStore = useTabStore.getState();
-        const { addTab, activeTab, updateTabContent } = tabStore;
 
-        setTimeout(() => {
-          const curTab = activeTab();
+      const current = tabStore.activeTab();
 
-          // 当前tab1 且 nextKey 为 2 且tab1内容为空
-          if (
-            curTab &&
-            curTab.key === "1" &&
-            tabStore.nextKey === 2 &&
-            curTab.content.trim() === ""
-          ) {
-            // 更新现有标签页内容
-            updateTabContent(curTab.key, data.payload);
+      if (
+        current?.kind === "document" &&
+        tabStore.tabs.length === 1 &&
+        current.content.trim() === ""
+      ) {
+        tabStore.updateTabContent(current.key, data.payload);
+        console.log("Chrome扩展数据已更新到当前标签页");
+      } else {
+        const title = data.sourceUrl
+          ? `JSON - ${new URL(data.sourceUrl).hostname}`
+          : data.title || "JSON数据";
 
-            // 调用编辑器的 updateValue 方法更新编辑器内容
-            const editorRef = this.editorRefs[curTab.key];
-
-            if (editorRef && editorRef.updateValue) {
-              editorRef.updateValue(data.payload);
-              setTimeout(() => {
-                editorRef.format();
-              }, 300);
-            }
-            console.log("Chrome扩展数据已更新到 tab1:", data.payload);
-          } else {
-            // 创建新标签页，包含来源信息
-            const title = data.sourceUrl 
-              ? `JSON - ${new URL(data.sourceUrl).hostname}`
-              : data.title || "JSON数据";
-              
-            addTab(title, data.payload);
-            console.log("Chrome扩展已创建新标签页:", data.payload);
-          }
-        }, 100);
+        tabStore.addTab(title, data.payload);
+        console.log("Chrome扩展已创建新标签页");
       }
     } catch (error) {
       console.error("处理Chrome扩展消息时发生错误:", error);
     }
-  }
-
-  /**
-   * 检查是否已初始化
-   */
-  public isListenerInitialized(): boolean {
-    return this.isInitialized;
-  }
-
-  /**
-   * 检查是否在Chrome扩展环境中
-   */
-  public isChromeExtensionEnvironment(): boolean {
-    return typeof chrome !== 'undefined' && 
-           !!(chrome.runtime && chrome.runtime.id);
-  }
-
-  /**
-   * 向Chrome扩展发送消息
-   */
-  public sendMessageToExtension(message: any): void {
-    if (this.isChromeExtensionEnvironment()) {
-      try {
-        chrome.runtime.sendMessage(message);
-      } catch (error) {
-        console.error("发送消息到Chrome扩展失败:", error);
-      }
-    }
-  }
-
-  /**
-   * 通知Chrome扩展页面已准备就绪
-   */
-  public notifyPageReady(): void {
-    this.sendMessageToExtension({
-      type: 'PAGE_READY',
-      timestamp: Date.now()
-    });
-  }
-
-  /**
-   * 通知Chrome扩展当前JSON数据状态
-   */
-  public notifyJsonDataStatus(tabKey: string, hasValidJson: boolean): void {
-    this.sendMessageToExtension({
-      type: 'JSON_DATA_STATUS',
-      payload: {
-        tabKey,
-        hasValidJson,
-        timestamp: Date.now()
-      }
-    });
   }
 }
 
