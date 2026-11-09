@@ -1,22 +1,30 @@
+import { encodeJwtLossless, decodeJwtLossless } from "@/utils/jwtLossless";
+import { writeClipboardText } from "@/utils/clipboard";
+import { createToolStateHook } from "@/components/workspace/ToolContext";
 import { useRef, useState } from "react";
 import {
   Button,
-  Card,
-  CardBody,
   Spinner,
-  Chip,
   Select,
   SelectItem,
   Tooltip,
   Input,
-} from "@heroui/react";
-import { Icon } from "@iconify/react";
+} from "@/components/ui";
+import {
+  Copy,
+  CircleHelp,
+  KeyRound,
+  RotateCcw,
+  ShieldCheck,
+} from "lucide-react";
+import ToolPanel from "@/components/toolbox/ToolPanel";
+import toast from "@/utils/toast";
 import { useTheme } from "next-themes";
 import jwt from "jsonwebtoken";
 
 import MonacoEditor, {
-  MonacoJsonEditorRef,
-} from "@/components/monacoEditor/MonacoJsonEditor.tsx";
+  MonacoDataEditorRef,
+} from "@/components/monacoEditor/MonacoDataEditor.tsx";
 import ToolboxPageTemplate from "@/layouts/toolboxPageTemplate";
 import { parseJson, stringifyJson } from "@/utils/json";
 
@@ -47,11 +55,7 @@ const encodeJwt = async (
       throw new Error("无效的payload格式");
     }
 
-    // 使用 jsonwebtoken 库签发 token
-    const token = jwt.sign(payload, secret, {
-      algorithm: algorithm as jwt.Algorithm,
-      header: updatedHeader,
-    });
+    const token = encodeJwtLossless(updatedHeader, payload, secret, algorithm);
 
     return token;
   } catch (error) {
@@ -84,8 +88,7 @@ const decodeJwt = (token: string) => {
       };
     }
 
-    // 使用 jsonwebtoken 解码而不验证签名
-    const decoded = jwt.decode(token, { complete: true });
+    const decoded = decodeJwtLossless(token);
 
     if (!decoded) {
       return {
@@ -223,24 +226,28 @@ const verifyJwtSignature = async (token: string, secret: string) => {
   }
 };
 
+const useToolState = createToolStateHook("jwtParse");
+
 export default function JwtParsePage() {
-  const { theme } = useTheme();
+  const { resolvedTheme: theme } = useTheme();
 
   // 编辑器引用
-  const jwtEditorRef = useRef<MonacoJsonEditorRef>(null);
-  const headerEditorRef = useRef<MonacoJsonEditorRef>(null);
-  const payloadEditorRef = useRef<MonacoJsonEditorRef>(null);
-  const encodeHeaderEditorRef = useRef<MonacoJsonEditorRef>(null);
-  const encodePayloadEditorRef = useRef<MonacoJsonEditorRef>(null);
+  const jwtEditorRef = useRef<MonacoDataEditorRef>(null);
+  const headerEditorRef = useRef<MonacoDataEditorRef>(null);
+  const payloadEditorRef = useRef<MonacoDataEditorRef>(null);
+  const encodeHeaderEditorRef = useRef<MonacoDataEditorRef>(null);
+  const encodePayloadEditorRef = useRef<MonacoDataEditorRef>(null);
 
   // 状态管理
-  const [jwtToken, setJwtToken] = useState<string>("");
-  const [headerJson, setHeaderJson] = useState<string>("");
-  const [payloadJson, setPayloadJson] = useState<string>("");
-  const [encodeHeaderJson, setEncodeHeaderJson] = useState<string>(
+  const [jwtToken, setJwtToken] = useToolState("jwtToken", "");
+  const [headerJson, setHeaderJson] = useToolState("headerJson", "");
+  const [payloadJson, setPayloadJson] = useToolState("payloadJson", "");
+  const [encodeHeaderJson, setEncodeHeaderJson] = useToolState(
+    "encodeHeaderJson",
     stringifyJson({ alg: "HS256", typ: "JWT" }, 2),
   );
-  const [encodePayloadJson, setEncodePayloadJson] = useState<string>(
+  const [encodePayloadJson, setEncodePayloadJson] = useToolState(
+    "encodePayloadJson",
     stringifyJson(
       {
         sub: "1234567890",
@@ -250,11 +257,17 @@ export default function JwtParsePage() {
       2,
     ),
   );
-  const [secret, setSecret] = useState<string>("");
-  const [isTokenValid, setIsTokenValid] = useState<boolean | null>(null);
-  const [validationMessage, setValidationMessage] = useState<string>("");
+  const [secret, setSecret] = useToolState("secret", "");
+  const [isTokenValid, setIsTokenValid] = useToolState("isTokenValid", null);
+  const [validationMessage, setValidationMessage] = useToolState(
+    "validationMessage",
+    "",
+  );
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState<string>("HS256");
+  const [selectedAlgorithm, setSelectedAlgorithm] = useToolState(
+    "selectedAlgorithm",
+    "HS256",
+  );
 
   // 解析 JWT
   const parseJwt = () => {
@@ -549,9 +562,8 @@ export default function JwtParsePage() {
       return;
     }
 
-    if (navigator.clipboard) {
-      navigator.clipboard
-        .writeText(jwtToken)
+    if (navigator.clipboard || (window as any).utools) {
+      writeClipboardText(jwtToken)
         .then(() => {
           setIsTokenValid(true);
           setValidationMessage("已复制到剪贴板");
@@ -576,14 +588,14 @@ export default function JwtParsePage() {
 
     // 使用当前时间戳作为iat，确保每次生成的JWT都不同
     const payload = {
-      username: "json-tools",
+      username: "datamorph",
       sub: "demo",
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30天后过期
     };
 
     // 设置密钥
-    const sampleSecret = "json-tools";
+    const sampleSecret = "datamorph";
 
     setSecret(sampleSecret);
 
@@ -653,157 +665,181 @@ export default function JwtParsePage() {
     "iat：签发时间（Issued At）\n" +
     "jti：JWT唯一标识符";
 
+  const copySection = (value: string) => {
+    void writeClipboardText(value)
+      .then(() => toast.success("已复制到剪贴板"))
+      .catch(() => toast.error("复制失败"));
+  };
+  const help = (label: string, content: string) => (
+    <Tooltip content={content} className="max-w-xs whitespace-pre-line">
+      <Button isIconOnly size="sm" variant="ghost" aria-label={label}>
+        <CircleHelp />
+      </Button>
+    </Tooltip>
+  );
+
   return (
     <ToolboxPageTemplate
       toolIcon="solar:document-lock-linear"
-      toolIconColor="text-primary"
       toolName="JWT 解析与验证"
+      description="左侧查看令牌与载荷，右侧检查头部和签名。"
+      actions={
+        <>
+          <Button
+            color="primary"
+            size="sm"
+            isDisabled={isProcessing || !jwtToken}
+            onPress={parseJwt}
+          >
+            {isProcessing ? <Spinner size="sm" /> : <KeyRound />}解码 JWT
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            isDisabled={isProcessing}
+            onPress={generateSampleJwt}
+          >
+            载入示例
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            isDisabled={isProcessing}
+            onPress={handleReset}
+          >
+            <RotateCcw />
+            重置内容
+          </Button>
+        </>
+      }
+      statusIndicator="解析成功不代表签名有效"
     >
-      <div className="flex flex-col h-full">
-        {/* 解码/验证界面 */}
-        <div className="flex flex-col md:flex-row h-full gap-4">
-          {/* 编码区域 - JWT 输入 */}
-          <Card className="flex-1 shadow-md border border-default-200 transition-shadow hover:shadow-lg">
-            <CardBody className="p-0 h-full flex flex-col">
-              <div className="px-2.5 py-1  bg-default-50 border-b border-default-200 flex justify-between items-center">
-                <span className="text-sm font-medium flex items-center gap-2">
-                  <Icon
-                    className="text-default-600"
-                    icon="solar:key-minimalistic-outline"
-                    width={16}
-                  />
-                  编码区域
-                </span>
-                <div className="flex items-center gap-1">
-                  <Tooltip
-                    className="max-w-xs"
-                    classNames={{
-                      content: "text-left whitespace-pre-line",
-                    }}
-                    content={jwtHelpInfo}
-                    placement="top"
-                  >
-                    <Button
-                      isIconOnly
-                      aria-label="帮助"
-                      className="bg-default-100/50 hover:bg-default-200/60"
-                      size="sm"
-                      variant="light"
-                    >
-                      <Icon
-                        className="text-default-600"
-                        icon="solar:question-circle-outline"
-                        width={18}
-                      />
-                    </Button>
-                  </Tooltip>
-                  <Tooltip content="复制" placement="top">
-                    <Button
-                      isIconOnly
-                      aria-label="复制"
-                      className="bg-default-100/50 hover:bg-default-200/60"
-                      size="sm"
-                      variant="light"
-                      onPress={copyJwt}
-                    >
-                      <Icon
-                        className="text-default-600"
-                        icon="solar:copy-outline"
-                        width={18}
-                      />
-                    </Button>
-                  </Tooltip>
-                </div>
-              </div>
-              <div className="flex-1 p-0 overflow-hidden">
-                <MonacoEditor
-                  ref={jwtEditorRef}
-                  height="100%"
-                  language="shell"
-                  tabKey="jwt"
-                  theme={theme === "dark" ? "vs-dark" : "vs-light"}
-                  value={jwtToken}
-                  onUpdateValue={(value) => setJwtToken(value || "")}
-                />
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* 操作区域 */}
-          <Card className="flex-1 shadow-md border border-default-200 transition-shadow hover:shadow-lg">
-            <CardBody className="p-0 h-full flex flex-col">
-              <div className="p-2.5 bg-default-50 border-b border-default-200 flex justify-between items-center">
-                <span className="text-sm font-medium flex items-center gap-2">
-                  <Icon
-                    className="text-default-600"
-                    icon="solar:settings-minimalistic-outline"
-                    width={16}
-                  />
-                  操作区域
-                </span>
-                <div className="flex items-center gap-1">
-                  {/* 添加空白区域，保持与其他标题样式一致 */}
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-4 p-4">
-                <Select
-                  aria-label="签名算法"
-                  className="w-full"
-                  color="primary"
-                  label="签名算法"
-                  selectedKeys={[selectedAlgorithm]}
-                  size="md"
-                  startContent={
-                    <Icon
-                      className="mr-1 text-primary"
-                      icon="solar:lock-outline"
-                      width={18}
-                    />
-                  }
-                  variant="bordered"
-                  onChange={(e) => {
-                    setSelectedAlgorithm(e.target.value);
-                    // 更新 header 中的 alg 字段
-                    try {
-                      const header = parseJson(encodeHeaderJson);
-
-                      header.alg = e.target.value;
-                      const updatedHeader = stringifyJson(header, 2);
-
-                      setEncodeHeaderJson(updatedHeader);
-                      encodeHeaderEditorRef.current?.updateValue(updatedHeader);
-                    } catch (err) {
-                      console.error("解析 header 失败", err);
-                    }
-                  }}
+      <div className="tool-jwt-layout">
+        <div className="tool-jwt-main">
+          <ToolPanel
+            title="JWT 令牌"
+            actions={
+              <>
+                {help("JWT 帮助", jwtHelpInfo)}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isIconOnly
+                  aria-label="复制 JWT"
+                  isDisabled={!jwtToken}
+                  onPress={copyJwt}
                 >
-                  <SelectItem key="HS256">HS256</SelectItem>
-                  <SelectItem key="HS384">HS384</SelectItem>
-                  <SelectItem key="HS512">HS512</SelectItem>
-                  <SelectItem key="RS256">RS256</SelectItem>
-                  <SelectItem key="RS384">RS384</SelectItem>
-                  <SelectItem key="RS512">RS512</SelectItem>
-                  <SelectItem key="ES256">ES256</SelectItem>
-                  <SelectItem key="ES384">ES384</SelectItem>
-                  <SelectItem key="ES512">ES512</SelectItem>
-                  <SelectItem key="PS256">PS256</SelectItem>
-                  <SelectItem key="PS384">PS384</SelectItem>
-                  <SelectItem key="PS512">PS512</SelectItem>
-                </Select>
-
-                <Input
-                  aria-label="密钥"
-                  className="w-full"
-                  color="primary"
-                  label="密钥"
-                  placeholder="输入用于签名的密钥"
-                  size="md"
-                  value={secret}
-                  variant="bordered"
-                  onChange={(e) => setSecret(e.target.value)}
-                />
+                  <Copy />
+                </Button>
+              </>
+            }
+          >
+            <MonacoEditor
+              ref={jwtEditorRef}
+              language="plaintext"
+              tabKey="jwt"
+              theme={theme === "dark" ? "vs-dark" : "vs-light"}
+              value={jwtToken}
+              onUpdateValue={(value) => {
+                setJwtToken(value || "");
+                setIsTokenValid(null);
+                setValidationMessage("");
+              }}
+            />
+          </ToolPanel>
+          <ToolPanel
+            title="Payload · 载荷"
+            actions={
+              <>
+                {help("Payload 帮助", payloadHelpInfo)}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isIconOnly
+                  aria-label="复制 Payload"
+                  onPress={() => copySection(payloadJson || encodePayloadJson)}
+                >
+                  <Copy />
+                </Button>
+              </>
+            }
+          >
+            <MonacoEditor
+              ref={payloadEditorRef}
+              language="json"
+              tabKey="payload"
+              theme={theme === "dark" ? "vs-dark" : "vs-light"}
+              value={payloadJson || encodePayloadJson}
+              onUpdateValue={(value) => {
+                setPayloadJson(value || "");
+                setEncodePayloadJson(value || "");
+              }}
+            />
+          </ToolPanel>
+        </div>
+        <aside className="tool-jwt-inspector" aria-label="JWT 检查器">
+          <ToolPanel
+            title="Header · 头部"
+            className="tool-jwt-header"
+            actions={
+              <>
+                {help("Header 帮助", headerHelpInfo)}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  isIconOnly
+                  aria-label="复制 Header"
+                  onPress={() => copySection(headerJson || encodeHeaderJson)}
+                >
+                  <Copy />
+                </Button>
+              </>
+            }
+          >
+            <MonacoEditor
+              ref={headerEditorRef}
+              language="json"
+              tabKey="header"
+              theme={theme === "dark" ? "vs-dark" : "vs-light"}
+              value={headerJson || encodeHeaderJson}
+              onUpdateValue={(value) => {
+                setHeaderJson(value || "");
+                setEncodeHeaderJson(value || "");
+              }}
+            />
+          </ToolPanel>
+          <ToolPanel title="签名检查与生成" className="tool-jwt-signature">
+            <div className="tool-jwt-fields">
+              <div
+                role="status"
+                aria-live="polite"
+                className={`rounded-md border px-3 py-2 text-xs whitespace-pre-line break-words ${isTokenValid === true ? "border-success/30 bg-success/5 text-success" : isTokenValid === false ? "border-destructive/30 bg-destructive/5 text-destructive" : "border-border bg-muted/40 text-muted-foreground"}`}
+              >
+                {validationMessage || "尚未验证签名"}
+              </div>
+              <Select
+                aria-label="签名算法"
+                label="生成算法"
+                selectedKeys={[selectedAlgorithm]}
+                size="sm"
+                onChange={(event) => {
+                  setSelectedAlgorithm(event.target.value);
+                  try {
+                    const header = parseJson(headerJson || encodeHeaderJson);
+                    header.alg = event.target.value;
+                    const value = stringifyJson(header, 2);
+                    setEncodeHeaderJson(value);
+                    setHeaderJson(value);
+                    headerEditorRef.current?.updateValue(value);
+                  } catch {
+                    toast.warning("头部 JSON 无效，请修正后再生成");
+                  }
+                }}
+              >
                 {[
+                  "HS256",
+                  "HS384",
+                  "HS512",
                   "RS256",
                   "RS384",
                   "RS512",
@@ -813,307 +849,44 @@ export default function JwtParsePage() {
                   "PS256",
                   "PS384",
                   "PS512",
-                ].includes(selectedAlgorithm) && (
-                  <div className="mt-1 text-xs text-default-400">
-                    注意：非对称算法（RS*/ES*/PS*）签名需要私钥
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-2 mt-4">
-                  <Button
-                    fullWidth
-                    className="font-medium"
-                    color="primary"
-                    isDisabled={isProcessing}
-                    size="lg"
-                    startContent={
-                      isProcessing ? (
-                        <Spinner color="current" size="sm" />
-                      ) : (
-                        <Icon icon="solar:code-square-outline" width={18} />
-                      )
-                    }
-                    variant="flat"
-                    onPress={parseJwt}
-                  >
-                    解码 JWT
-                  </Button>
-
-                  <Button
-                    fullWidth
-                    className="font-medium"
-                    color="secondary"
-                    isDisabled={isProcessing || !secret}
-                    size="lg"
-                    startContent={
-                      isProcessing ? (
-                        <Spinner color="current" size="sm" />
-                      ) : (
-                        <Icon icon="solar:check-square-linear" width={18} />
-                      )
-                    }
-                    variant="flat"
-                    onPress={verifyJwt}
-                  >
-                    校验一下
-                  </Button>
-
-                  <Button
-                    fullWidth
-                    className="font-medium"
-                    color="success"
-                    isDisabled={isProcessing}
-                    size="lg"
-                    startContent={
-                      <Icon icon="solar:file-download-outline" width={18} />
-                    }
-                    variant="flat"
-                    onPress={encodeJwtToken}
-                  >
-                    生成 JWT
-                  </Button>
-
-                  <Button
-                    fullWidth
-                    className="font-medium"
-                    color="default"
-                    size="lg"
-                    startContent={<Icon icon="cuida:lamp-outline" width={18} />}
-                    variant="flat"
-                    onPress={generateSampleJwt}
-                  >
-                    来个Demo
-                  </Button>
-
-                  <Button
-                    fullWidth
-                    className="font-medium"
-                    color="danger"
-                    isDisabled={isProcessing}
-                    size="lg"
-                    startContent={
-                      <Icon icon="solar:restart-outline" width={18} />
-                    }
-                    variant="flat"
-                    onPress={handleReset}
-                  >
-                    重置内容
-                  </Button>
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* 解码区域 */}
-          <Card className="flex-1 shadow-md border border-default-200 transition-shadow hover:shadow-lg">
-            <CardBody className="p-0 h-full flex flex-col">
-              <div className="p-2.5 bg-default-50 border-b border-default-200 flex justify-between items-center">
-                <span className="text-sm font-medium flex items-center gap-2">
-                  <Icon
-                    className="text-default-600"
-                    icon="solar:document-text-outline"
-                    width={16}
-                  />
-                  解码区域
-                </span>
-              </div>
-
-              <div className="flex flex-col h-full overflow-auto">
-                {/* 头部/Header */}
-                <div className="p-3 border-b border-default-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      <Icon
-                        className="text-default-600"
-                        icon="solar:document-text-outline"
-                        width={16}
-                      />
-                      头部/Header
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Tooltip
-                        className="max-w-xs"
-                        classNames={{
-                          content: "text-left whitespace-pre-line",
-                        }}
-                        content={headerHelpInfo}
-                        placement="top"
-                      >
-                        <Button
-                          isIconOnly
-                          aria-label="帮助"
-                          className="bg-default-100/50 hover:bg-default-200/60"
-                          size="sm"
-                          variant="light"
-                        >
-                          <Icon
-                            className="text-default-600"
-                            icon="solar:question-circle-outline"
-                            width={18}
-                          />
-                        </Button>
-                      </Tooltip>
-                      <Button
-                        isIconOnly
-                        aria-label="复制"
-                        className="bg-default-100/50 hover:bg-default-200/60"
-                        size="sm"
-                        variant="light"
-                        onPress={() => {
-                          if (headerJson) {
-                            navigator.clipboard.writeText(headerJson);
-                            setValidationMessage("已复制头部到剪贴板");
-                          }
-                        }}
-                      >
-                        <Icon
-                          className="text-default-600"
-                          icon="solar:copy-outline"
-                          width={18}
-                        />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="h-[150px] overflow-hidden">
-                    <MonacoEditor
-                      ref={headerEditorRef}
-                      height="150px"
-                      language="json"
-                      tabKey="header"
-                      theme={theme === "dark" ? "vs-dark" : "vs-light"}
-                      value={headerJson}
-                      onUpdateValue={(value) => setHeaderJson(value || "")}
-                    />
-                  </div>
-                </div>
-
-                {/* 载荷/Payload */}
-                <div className="p-3 border-b border-default-200">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      <Icon
-                        className="text-default-600"
-                        icon="solar:server-outline"
-                        width={16}
-                      />
-                      载荷/Payload
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Tooltip
-                        className="max-w-xs"
-                        classNames={{
-                          content: "text-left whitespace-pre-line",
-                        }}
-                        content={payloadHelpInfo}
-                        placement="top"
-                      >
-                        <Button
-                          isIconOnly
-                          aria-label="帮助"
-                          className="bg-default-100/50 hover:bg-default-200/60"
-                          size="sm"
-                          variant="light"
-                        >
-                          <Icon
-                            className="text-default-600"
-                            icon="solar:question-circle-outline"
-                            width={18}
-                          />
-                        </Button>
-                      </Tooltip>
-                      <Button
-                        isIconOnly
-                        aria-label="复制"
-                        className="bg-default-100/50 hover:bg-default-200/60"
-                        size="sm"
-                        variant="light"
-                        onPress={() => {
-                          if (payloadJson) {
-                            navigator.clipboard.writeText(payloadJson);
-                            setValidationMessage("已复制载荷到剪贴板");
-                          }
-                        }}
-                      >
-                        <Icon
-                          className="text-default-600"
-                          icon="solar:copy-outline"
-                          width={18}
-                        />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="h-[150px] overflow-hidden">
-                    <MonacoEditor
-                      ref={payloadEditorRef}
-                      height="150px"
-                      language="json"
-                      tabKey="payload"
-                      theme={theme === "dark" ? "vs-dark" : "vs-light"}
-                      value={payloadJson}
-                      onUpdateValue={(value) => setPayloadJson(value || "")}
-                    />
-                  </div>
-                </div>
-
-                {/* 签名验证结果 */}
-                <div className="p-3">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium flex items-center gap-2">
-                      <Icon
-                        className="text-default-600"
-                        icon="solar:lock-keyhole-minimalistic-outline"
-                        width={16}
-                      />
-                      签名验证
-                    </span>
-                  </div>
-                  {validationMessage && (
-                    <div className="flex flex-col w-full">
-                      <Chip
-                        className="px-3 py-2 h-auto min-h-[40px] text-left"
-                        classNames={{
-                          base: "break-words",
-                          content: "whitespace-pre-line break-words w-full",
-                        }}
-                        color={
-                          isTokenValid === true
-                            ? "success"
-                            : isTokenValid === false
-                              ? "danger"
-                              : "warning"
-                        }
-                        startContent={
-                          isTokenValid === true ? (
-                            <Icon
-                              className="mx-1 flex-shrink-0"
-                              icon="icon-park-outline:success"
-                              width={18}
-                            />
-                          ) : isTokenValid === false ? (
-                            <Icon
-                              className="mx-1 flex-shrink-0"
-                              icon="icon-park-outline:close"
-                              width={18}
-                            />
-                          ) : (
-                            <Icon
-                              className="mx-1 flex-shrink-0"
-                              icon="icon-park-outline:attention"
-                              width={18}
-                            />
-                          )
-                        }
-                        variant="flat"
-                      >
-                        {validationMessage}
-                      </Chip>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-        </div>
+                ].map((algorithm) => (
+                  <SelectItem key={algorithm}>{algorithm}</SelectItem>
+                ))}
+              </Select>
+              <Input
+                aria-label="密钥"
+                label="密钥"
+                placeholder="输入签名密钥或验证公钥"
+                value={secret}
+                onChange={(event) => {
+                  setSecret(event.target.value);
+                  setIsTokenValid(null);
+                  setValidationMessage("");
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                验证使用令牌中的算法。非对称算法生成需要私钥，验证需要公钥。
+              </p>
+              <Button
+                color="primary"
+                size="sm"
+                isDisabled={isProcessing || !secret || !jwtToken}
+                onPress={verifyJwt}
+              >
+                <ShieldCheck />
+                验证签名
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                isDisabled={isProcessing || !secret}
+                onPress={encodeJwtToken}
+              >
+                生成 JWT
+              </Button>
+            </div>
+          </ToolPanel>
+        </aside>
       </div>
     </ToolboxPageTemplate>
   );

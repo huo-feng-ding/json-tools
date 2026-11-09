@@ -1,3 +1,5 @@
+import toast from "@/utils/toast";
+import { LOCAL_TIME_ZONE, normalizeTimeZone } from "@/utils/timeZone";
 // useSettingsStore.ts
 import { create } from "zustand";
 import { devtools, subscribeWithSelector } from "zustand/middleware";
@@ -27,9 +29,14 @@ export interface SettingsState {
   fontSize: FontSize;
   // 解码器设置
   timestampDecoderEnabled: boolean;
+  timestampTimeZone: string;
   base64DecoderEnabled: boolean;
   unicodeDecoderEnabled: boolean;
   urlDecoderEnabled: boolean;
+  imageDecoderEnabled: boolean;
+  embeddedJsonDecoderEnabled: boolean;
+  colorDecoderEnabled: boolean;
+  summaryDecoderEnabled: boolean;
   // 编辑器默认设置
   defaultIndentSize: number;
   // 快捷键设置
@@ -44,8 +51,13 @@ export interface SettingsState {
   setChatStyle: (value: ChatStyle) => void;
   setFontSize: (value: FontSize) => void;
   setTimestampDecoderEnabled: (value: boolean) => void;
+  setTimestampTimeZone: (value: string) => void;
   setBase64DecoderEnabled: (value: boolean) => void;
   setUnicodeDecoderEnabled: (value: boolean) => void;
+  setImageDecoderEnabled: (value: boolean) => void;
+  setEmbeddedJsonDecoderEnabled: (value: boolean) => void;
+  setColorDecoderEnabled: (value: boolean) => void;
+  setSummaryDecoderEnabled: (value: boolean) => void;
   setUrlDecoderEnabled: (value: boolean) => void;
   setDefaultIndentSize: (value: number) => void;
   setNewTabShortcut: (value: string) => void;
@@ -60,14 +72,19 @@ export const useSettingsStore = create<SettingsState>()(
     devtools(
       (set) => ({
         // 初始状态
-        expandSidebar: false,
+        expandSidebar: true,
         monacoEditorCDN: "local",
         chatStyle: "bubble",
         fontSize: "medium",
         timestampDecoderEnabled: true,
+        timestampTimeZone: LOCAL_TIME_ZONE,
         base64DecoderEnabled: true,
         unicodeDecoderEnabled: true,
         urlDecoderEnabled: true,
+        imageDecoderEnabled: true,
+        embeddedJsonDecoderEnabled: true,
+        colorDecoderEnabled: true,
+        summaryDecoderEnabled: true,
         defaultIndentSize: 4,
         newTabShortcut: "Ctrl+Shift+T",
         closeTabShortcut: "Ctrl+Shift+W",
@@ -81,10 +98,20 @@ export const useSettingsStore = create<SettingsState>()(
         setFontSize: (value: FontSize) => set({ fontSize: value }),
         setTimestampDecoderEnabled: (value: boolean) =>
           set({ timestampDecoderEnabled: value }),
+        setTimestampTimeZone: (value: string) =>
+          set({ timestampTimeZone: normalizeTimeZone(value) }),
         setBase64DecoderEnabled: (value: boolean) =>
           set({ base64DecoderEnabled: value }),
         setUnicodeDecoderEnabled: (value: boolean) =>
           set({ unicodeDecoderEnabled: value }),
+        setImageDecoderEnabled: (value: boolean) =>
+          set({ imageDecoderEnabled: value }),
+        setEmbeddedJsonDecoderEnabled: (value: boolean) =>
+          set({ embeddedJsonDecoderEnabled: value }),
+        setColorDecoderEnabled: (value: boolean) =>
+          set({ colorDecoderEnabled: value }),
+        setSummaryDecoderEnabled: (value: boolean) =>
+          set({ summaryDecoderEnabled: value }),
         setUrlDecoderEnabled: (value: boolean) =>
           set({ urlDecoderEnabled: value }),
         setDefaultIndentSize: (value: number) =>
@@ -100,7 +127,10 @@ export const useSettingsStore = create<SettingsState>()(
           const settings = await storageManager.get<SettingsState>(DB_SETTINGS);
 
           if (settings) {
-            set(settings);
+            set({
+              ...settings,
+              timestampTimeZone: normalizeTimeZone(settings.timestampTimeZone),
+            });
           }
         },
       }),
@@ -121,9 +151,14 @@ const getPersistedSettings = (settings: SettingsState) => ({
   chatStyle: settings.chatStyle,
   fontSize: settings.fontSize,
   timestampDecoderEnabled: settings.timestampDecoderEnabled,
+  timestampTimeZone: settings.timestampTimeZone,
   base64DecoderEnabled: settings.base64DecoderEnabled,
   unicodeDecoderEnabled: settings.unicodeDecoderEnabled,
   urlDecoderEnabled: settings.urlDecoderEnabled,
+  imageDecoderEnabled: settings.imageDecoderEnabled,
+  embeddedJsonDecoderEnabled: settings.embeddedJsonDecoderEnabled,
+  colorDecoderEnabled: settings.colorDecoderEnabled,
+  summaryDecoderEnabled: settings.summaryDecoderEnabled,
   defaultIndentSize: settings.defaultIndentSize,
   newTabShortcut: settings.newTabShortcut,
   closeTabShortcut: settings.closeTabShortcut,
@@ -142,8 +177,14 @@ useSettingsStore.subscribe(
   (state) => state,
   (settings) => {
     clearTimeout(settingsSaveTimeout);
-    settingsSaveTimeout = setTimeout(async () => {
-      await persistSettings(settings);
+    settingsSaveTimeout = setTimeout(() => {
+      void persistSettings(settings).catch((error) => {
+        console.error("Settings save failed", error);
+        toast.error(
+          "设置未能保存到本地",
+          "当前设置仍在本窗口生效，请检查可用存储空间。",
+        );
+      });
     }, timeout);
   },
 );

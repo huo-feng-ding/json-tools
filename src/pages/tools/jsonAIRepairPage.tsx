@@ -1,34 +1,38 @@
+import { useToolAI } from "@/components/workspace/useToolAI";
+import { useBackgroundTask } from "@/components/workspace/useBackgroundTask";
+import { createToolStateHook } from "@/components/workspace/ToolContext";
 import { useRef, useState, useEffect } from "react";
-import { Button, Card, CardBody, Spinner, Chip } from "@heroui/react";
-import { Icon } from "@iconify/react";
+import { Button, Spinner } from "@/components/ui";
+import { Check, RotateCcw, WandSparkles, Wrench } from "lucide-react";
 import { useTheme } from "next-themes";
-import { jsonrepair } from "jsonrepair";
 
 import toast from "@/utils/toast";
 import MonacoDiffEditor, {
   MonacoDiffEditorRef,
 } from "@/components/monacoEditor/MonacoDiffEditor.tsx";
-import MonacoDiffOperationBar, {
-  MonacoDiffOperationBarRef,
-} from "@/components/monacoEditor/operationBar/MonacoDiffOperationBar.tsx";
+import MonacoDiffOperationBar from "@/components/monacoEditor/operationBar/MonacoDiffOperationBar.tsx";
 import { MonacoDiffEditorEditorType } from "@/components/monacoEditor/monacoEntity.ts";
 import { useOpenAIConfigStore } from "@/store/useOpenAIConfigStore";
 import ToolboxPageTemplate from "@/layouts/toolboxPageTemplate";
 import { openAIService } from "@/services/openAIService.ts";
 import { parseJson, stringifyJson } from "@/utils/json";
 
+const useToolState = createToolStateHook("jsonAIRepair");
+
 export default function JsonAIRepairPage() {
-  const { theme } = useTheme();
+  const { resolvedTheme: theme } = useTheme();
 
   const editorRef = useRef<MonacoDiffEditorRef>(null);
-  const operationBarRef = useRef<MonacoDiffOperationBarRef>(null);
+  const [settingsTarget, setSettingsTarget] = useState<HTMLSpanElement | null>(
+    null,
+  );
 
   // 使用 OpenAI 配置 store
   const { syncConfig } = useOpenAIConfigStore();
 
   // 编辑器内容状态
-  const [originalValue, setOriginalValue] = useState<string>("");
-  const [fixedValue, setFixedValue] = useState<string>("");
+  const [originalValue, setOriginalValue] = useToolState("originalValue", "");
+  const [fixedValue, setFixedValue] = useToolState("fixedValue", "");
 
   // 处理状态
   const [isBasicProcessing, setIsBasicProcessing] = useState<boolean>(false);
@@ -43,8 +47,10 @@ export default function JsonAIRepairPage() {
     openAIService.syncConfig();
   }, [syncConfig]);
 
+  const task = useBackgroundTask(originalValue);
+  const ai = useToolAI(originalValue);
   // 基本 JSON 修复函数
-  const basicJsonFix = () => {
+  const basicJsonFix = async () => {
     setIsBasicProcessing(true);
     setProcessingStep("正在处理 JSON...");
     try {
@@ -53,13 +59,17 @@ export default function JsonAIRepairPage() {
 
         return false;
       }
-      const repaired = jsonrepair(originalValue);
+      const repaired =
+        (await task.run({ action: "repair", content: originalValue }))
+          .content || "";
+      setFixedValue(repaired);
 
       editorRef.current?.updateModifiedValue(repaired);
       toast.success("修复成功");
 
       return true;
     } catch (e) {
+      if ((e as Error).name === "AbortError") return false;
       console.error("repairJson", e);
       toast.error("修复失败，可能不是有效的 Json 数据");
 
@@ -108,57 +118,54 @@ ${originalValue}
     }
 
     // 使用封装的OpenAI服务发送请求
-    await openAIService.createChatCompletion(
-      [{ role: "user", content: promptText }],
-      {
-        onStart: () => {
-          // 已在外部设置了处理状态
-        },
-        onProcessing: (step) => {
-          setProcessingStep(step);
-        },
-        onChunk: (_, accumulated) => {
-          // 清理结果，移除markdown格式标记
-          const cleanedJson = accumulated
+    await ai.run([{ role: "user", content: promptText }], {
+      onStart: () => {
+        // 已在外部设置了处理状态
+      },
+      onProcessing: (step) => {
+        setProcessingStep(step);
+      },
+      onChunk: (_, accumulated) => {
+        // 清理结果，移除markdown格式标记
+        const cleanedJson = accumulated
+          .replace(/^```json\s*/i, "")
+          .replace(/```\s*$/i, "")
+          .trim();
+
+        // 使用每个块立即更新编辑器
+        editorRef.current?.updateModifiedValue(cleanedJson);
+      },
+      onComplete: (final) => {
+        try {
+          // 如果存在 markdown 标记则清理
+          let finalJson = final
             .replace(/^```json\s*/i, "")
             .replace(/```\s*$/i, "")
             .trim();
 
-          // 使用每个块立即更新编辑器
+          // 如果是有效的 JSON 则格式化
+          const parsedJson = parseJson(finalJson);
+          const formattedJson = stringifyJson(parsedJson, 2);
+
+          editorRef.current?.updateModifiedValue(formattedJson);
+          setFixedValue(formattedJson);
+        } catch {
+          // 如果无法解析最终结果，则保留清理后的版本
+          const cleanedJson = final
+            .replace(/^```json\s*/i, "")
+            .replace(/```\s*$/i, "")
+            .trim();
+
           editorRef.current?.updateModifiedValue(cleanedJson);
-        },
-        onComplete: (final) => {
-          try {
-            // 如果存在 markdown 标记则清理
-            let finalJson = final
-              .replace(/^```json\s*/i, "")
-              .replace(/```\s*$/i, "")
-              .trim();
-
-            // 如果是有效的 JSON 则格式化
-            const parsedJson = parseJson(finalJson);
-            const formattedJson = stringifyJson(parsedJson, 2);
-
-            editorRef.current?.updateModifiedValue(formattedJson);
-            setFixedValue(formattedJson);
-          } catch {
-            // 如果无法解析最终结果，则保留清理后的版本
-            const cleanedJson = final
-              .replace(/^```json\s*/i, "")
-              .replace(/```\s*$/i, "")
-              .trim();
-
-            editorRef.current?.updateModifiedValue(cleanedJson);
-            setFixedValue(cleanedJson);
-            setProcessingStep("修复成功 (有警告)");
-          }
-        },
-        onError: () => {
-          // 错误处理已在服务中完成
-          setProcessingStep("");
-        },
+          setFixedValue(cleanedJson);
+          setProcessingStep("修复成功 (有警告)");
+        }
       },
-    );
+      onError: () => {
+        // 错误处理已在服务中完成
+        setProcessingStep("");
+      },
+    });
 
     setIsStreaming(false);
     setIsAiProcessing(false);
@@ -179,116 +186,100 @@ ${originalValue}
     }
   };
 
-  // 工具特定的操作按钮
-  const actionButtons = (
-    <>
-      <Button
-        color="secondary"
-        isDisabled={isBasicProcessing || isAiProcessing}
-        size="sm"
-        startContent={
-          isAiProcessing ? (
-            <Spinner color="secondary" size="sm" />
-          ) : (
-            <Icon icon="solar:magic-stick-linear" width={18} />
-          )
-        }
-        variant="bordered"
-        onPress={aiJsonFix}
-      >
-        AI 修复
-      </Button>
-      <Button
-        color="primary"
-        isDisabled={isBasicProcessing || isAiProcessing}
-        size="sm"
-        startContent={
-          isBasicProcessing ? (
-            <Spinner color="primary" size="sm" />
-          ) : (
-            <Icon icon="mynaui:tool" width={18} />
-          )
-        }
-        variant="bordered"
-        onPress={basicJsonFix}
-      >
-        自动修复
-      </Button>
-      <Button
-        color="success"
-        isDisabled={!fixedValue || isBasicProcessing || isAiProcessing}
-        size="sm"
-        startContent={<Icon icon="solar:check-circle-outline" width={18} />}
-        variant="bordered"
-        onPress={applyFixedContent}
-      >
-        应用修复
-      </Button>
-      <Button
-        color="danger"
-        isDisabled={isBasicProcessing || isAiProcessing}
-        size="sm"
-        startContent={<Icon icon="solar:restart-outline" width={18} />}
-        variant="bordered"
-        onPress={handleReset}
-      >
-        重置
-      </Button>
-    </>
-  );
-
-  // 状态指示器
-  const statusIndicator = processingStep ? (
-    <Chip
-      className="px-3"
-      color={isBasicProcessing || isAiProcessing ? "warning" : "success"}
-      startContent={
-        isStreaming ? (
-          <Spinner className="mx-1" color="warning" size="sm" />
-        ) : (
-          <Icon className="mx-1" icon="icon-park-outline:success" width={16} />
-        )
-      }
-      variant="flat"
-    >
-      {processingStep}
-    </Chip>
-  ) : null;
-
+  const busy = isBasicProcessing || isAiProcessing;
   return (
     <ToolboxPageTemplate
-      actions={actionButtons}
-      statusIndicator={statusIndicator}
       toolIcon="fluent-emoji-flat:magic-wand"
-      toolIconColor="text-primary"
-      toolName="JSON AI 修复工具"
+      toolName="JSON AI 修复"
+      description="先修复，再对照原文检查，确认后应用结果。"
+      actions={
+        <>
+          <Button
+            color="primary"
+            size="sm"
+            isDisabled={busy || !originalValue}
+            onPress={basicJsonFix}
+          >
+            {isBasicProcessing ? <Spinner size="sm" /> : <Wrench />}自动修复
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            isDisabled={busy || !originalValue}
+            onPress={aiJsonFix}
+          >
+            {isAiProcessing ? <Spinner size="sm" /> : <WandSparkles />}AI 修复
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            isDisabled={busy}
+            onPress={handleReset}
+          >
+            <RotateCcw />
+            重置
+          </Button>
+        </>
+      }
+      statusIndicator={
+        <span role="status" aria-live="polite">
+          {isStreaming ? "正在生成修复结果…" : processingStep}
+        </span>
+      }
     >
-      <div className="w-full h-full flex overflow-hidden">
-        <Card className="flex-1 w-full shadow-sm flex flex-col">
-          <CardBody className="p-0 flex-1 flex flex-col overflow-hidden">
-            <MonacoDiffOperationBar
-              ref={operationBarRef}
-              onClear={(type) => editorRef.current?.clear(type) == true}
-              onCopy={(type) => editorRef.current?.copy(type) == true}
-              onFieldSort={(type, sort) =>
-                editorRef.current?.fieldSort(type, sort) == true
-              }
-              onFormat={(type) => editorRef.current?.format(type) == true}
-            />
-            <div className="flex-1 h-full w-full overflow-hidden flex relative">
-              <MonacoDiffEditor
-                ref={editorRef}
-                height="100%"
-                modifiedValue={fixedValue}
-                originalValue={originalValue}
-                tabKey="json-fix-tool"
-                theme={theme === "dark" ? "vs-dark" : "vs-light"}
-                onUpdateModifiedValue={setFixedValue}
-                onUpdateOriginalValue={setOriginalValue}
-              />
-            </div>
-          </CardBody>
-        </Card>
+      <section className="tool-panel flex-1" aria-label="修复前后对照">
+        <div className="tool-diff-labels">
+          <div>
+            <span>原始 JSON</span>
+            <span>可编辑</span>
+          </div>
+          <div>
+            <span>修复结果</span>
+            <span>审阅后应用</span>
+          </div>
+        </div>
+        <MonacoDiffOperationBar
+          onAiClick={() => editorRef.current?.showAiPrompt()}
+          onClear={(side) => editorRef.current?.clear(side) === true}
+          onCopy={(side) => editorRef.current?.copy(side) === true}
+          onFieldSort={(side, sort) =>
+            editorRef.current?.fieldSort(side, sort) === true
+          }
+          onFormat={(side) => editorRef.current?.format(side) === true}
+          settingsTargetRef={setSettingsTarget}
+        />
+        <div className="tool-panel-body">
+          <MonacoDiffEditor
+            ref={editorRef}
+            tabKey="json-fix-tool"
+            language="json"
+            originalValue={originalValue}
+            modifiedValue={fixedValue}
+            originalAriaLabel="原始 JSON"
+            modifiedAriaLabel="修复结果"
+            theme={theme === "dark" ? "vs-dark" : "vs-light"}
+            onUpdateOriginalValue={setOriginalValue}
+            onUpdateModifiedValue={setFixedValue}
+            settingsBarTarget={settingsTarget}
+            languageBarTarget={null}
+          />
+        </div>
+      </section>
+      <div className="tool-review-footer">
+        <span>
+          {fixedValue
+            ? "检查差异后，将修复结果应用到原文。"
+            : "生成修复结果后，可在这里确认并应用。"}
+        </span>
+        <Button
+          color="primary"
+          size="sm"
+          isDisabled={busy || !fixedValue}
+          onPress={applyFixedContent}
+        >
+          <Check />
+          应用修复
+        </Button>
       </div>
     </ToolboxPageTemplate>
   );

@@ -1,4 +1,6 @@
-import { Switch } from "@heroui/react";
+import { TimeZoneSelector } from "../TimeZoneSelector";
+import { resolveTimeZone } from "@/utils/timeZone";
+import { Switch } from "@/components/ui";
 
 import {
   ControlSlot,
@@ -11,17 +13,6 @@ import {
 
 import toast from "@/utils/toast";
 import { useSettingsStore } from "@/store/useSettingsStore";
-import {
-  setBase64DecorationEnabled,
-  setBase64ProviderEnabled,
-} from "@/components/monacoEditor/decorations/base64Decoration";
-import { setUnicodeDecorationEnabled } from "@/components/monacoEditor/decorations/unicodeDecoration";
-import { setTimestampDecorationEnabled } from "@/components/monacoEditor/decorations/timestampDecoration";
-import {
-  setUrlDecorationEnabled,
-  setUrlProviderEnabled,
-} from "@/components/monacoEditor/decorations/urlDecoration";
-
 /** 单个解码器行 */
 interface DecoderItem {
   id: string;
@@ -32,6 +23,34 @@ interface DecoderItem {
 }
 
 const DECODERS: DecoderItem[] = [
+  {
+    id: "embeddedJson",
+    title: "字符串内 JSON 展开",
+    description: "悬浮查看字符串中的 JSON，支持复制和新标签打开",
+    icon: "braces",
+    tone: "info",
+  },
+  {
+    id: "color",
+    title: "颜色预览",
+    description: "识别 HEX、RGB、HSL 颜色并显示色块",
+    icon: "palette",
+    tone: "violet",
+  },
+  {
+    id: "summary",
+    title: "折叠摘要",
+    description: "仅在折叠后显示 Object { len }、Array [ len ]",
+    icon: "list-tree",
+    tone: "neutral",
+  },
+  {
+    id: "image",
+    title: "图片预览",
+    description: "识别图片链接，按需打开预览",
+    icon: "image",
+    tone: "neutral",
+  },
   {
     id: "timestamp",
     title: "时间戳解码器",
@@ -69,6 +88,7 @@ const DECODERS: DecoderItem[] = [
 export function DecoderSettings() {
   const {
     timestampDecoderEnabled,
+    timestampTimeZone,
     base64DecoderEnabled,
     unicodeDecoderEnabled,
     urlDecoderEnabled,
@@ -80,25 +100,31 @@ export function DecoderSettings() {
 
   const handleToggle = (id: string, value: boolean) => {
     switch (id) {
+      case "embeddedJson":
+        useSettingsStore.getState().setEmbeddedJsonDecoderEnabled(value);
+        break;
+      case "color":
+        useSettingsStore.getState().setColorDecoderEnabled(value);
+        break;
+      case "summary":
+        useSettingsStore.getState().setSummaryDecoderEnabled(value);
+        break;
+      case "image":
+        useSettingsStore.getState().setImageDecoderEnabled(value);
+        break;
       case "timestamp":
-        setTimestampDecorationEnabled(value);
         setTimestampDecoderEnabled(value);
         toast.success(`时间戳解码器已${value ? "启用" : "禁用"}`);
         break;
       case "base64":
-        setBase64DecorationEnabled(value);
-        setBase64ProviderEnabled(value);
         setBase64DecoderEnabled(value);
         toast.success(`Base64解码器已${value ? "启用" : "禁用"}`);
         break;
       case "unicode":
-        setUnicodeDecorationEnabled(value);
         setUnicodeDecoderEnabled(value);
         toast.success(`Unicode解码器已${value ? "启用" : "禁用"}`);
         break;
       case "url":
-        setUrlDecorationEnabled(value);
-        setUrlProviderEnabled(value);
         setUrlDecoderEnabled(value);
         toast.success(`URL解码器已${value ? "启用" : "禁用"}`);
         break;
@@ -106,6 +132,10 @@ export function DecoderSettings() {
   };
 
   const enabledMap: Record<string, boolean> = {
+    embeddedJson: useSettingsStore((s) => s.embeddedJsonDecoderEnabled),
+    color: useSettingsStore((s) => s.colorDecoderEnabled),
+    summary: useSettingsStore((s) => s.summaryDecoderEnabled),
+    image: useSettingsStore((s) => s.imageDecoderEnabled),
     timestamp: timestampDecoderEnabled,
     base64: base64DecoderEnabled,
     unicode: unicodeDecoderEnabled,
@@ -131,6 +161,7 @@ export function DecoderSettings() {
             <ControlSlot>
               <Switch
                 color="success"
+                aria-label={d.title}
                 isSelected={enabledMap[d.id]}
                 size="lg"
                 onValueChange={(value) => handleToggle(d.id, value)}
@@ -138,6 +169,17 @@ export function DecoderSettings() {
             </ControlSlot>
           </SettingRow>
         ))}
+
+        <SettingRow
+          description={`当前时区：${resolveTimeZone(timestampTimeZone)}。默认跟随本地时区，修改后同步到所有时间戳提示。`}
+          icon="solar:global-bold"
+          title="时间戳时区"
+          tone="info"
+        >
+          <ControlSlot className="w-full sm:w-60 sm:shrink-0">
+            <TimeZoneSelector />
+          </ControlSlot>
+        </SettingRow>
 
         <InfoNote title="关于解码器">
           <p>

@@ -1,23 +1,17 @@
+import { writeClipboardText } from "@/utils/clipboard";
+import { useToolAI } from "@/components/workspace/useToolAI";
+import { useBackgroundTask } from "@/components/workspace/useBackgroundTask";
+import { createToolStateHook } from "@/components/workspace/ToolContext";
 import { useRef, useState, useEffect } from "react";
-import {
-  Button,
-  Card,
-  CardBody,
-  Spinner,
-  Chip,
-  Select,
-  SelectItem,
-  Tooltip,
-  Divider,
-} from "@heroui/react";
-import { Icon } from "@iconify/react";
+import { Button, Spinner, Select, SelectItem } from "@/components/ui";
+import { Code2, Copy, RotateCcw, WandSparkles } from "lucide-react";
+import ToolPanel from "@/components/toolbox/ToolPanel";
 import { useTheme } from "next-themes";
-import * as quicktype from "quicktype-core";
 
 import toast from "@/utils/toast";
 import MonacoEditor, {
-  MonacoJsonEditorRef,
-} from "@/components/monacoEditor/MonacoJsonEditor.tsx";
+  MonacoDataEditorRef,
+} from "@/components/monacoEditor/MonacoDataEditor.tsx";
 import ToolboxPageTemplate from "@/layouts/toolboxPageTemplate";
 import ResizableEditorLayout from "@/components/layout/ResizableEditorLayout.tsx";
 import AIPromptOverlay, {
@@ -25,7 +19,6 @@ import AIPromptOverlay, {
 } from "@/components/ai/AIPromptOverlay.tsx";
 import { useOpenAIConfigStore } from "@/store/useOpenAIConfigStore";
 import { openAIService } from "@/services/openAIService";
-import { parseJson } from "@/utils/json";
 
 // 支持的目标语言列表
 const TARGET_LANGUAGES = [
@@ -41,7 +34,11 @@ const TARGET_LANGUAGES = [
   { value: "ruby", label: "Ruby", icon: "devicon:ruby" },
   { value: "rust", label: "Rust", icon: "devicon:rust" },
   { value: "php", label: "PHP", icon: "devicon:php" },
-  { value: "plaintext", label: "plainText", icon: "weui:text-filled" },
+  {
+    value: "plaintext",
+    label: "JSON Schema（纯文本）",
+    icon: "weui:text-filled",
+  },
 ];
 
 // 为AI转换定义快捷指令
@@ -126,16 +123,18 @@ const quickPrompts: QuickPrompt[] = [
   },
 ];
 
+const useToolState = createToolStateHook("jsonTypeConverter");
+
 export default function JsonTypeConverterPage() {
-  const { theme } = useTheme();
+  const { resolvedTheme: theme } = useTheme();
 
   // 编辑器引用
-  const inputEditorRef = useRef<MonacoJsonEditorRef>(null);
-  const outputEditorRef = useRef<MonacoJsonEditorRef>(null);
+  const inputEditorRef = useRef<MonacoDataEditorRef>(null);
+  const outputEditorRef = useRef<MonacoDataEditorRef>(null);
 
   // 状态管理
-  const [inputValue, setInputValue] = useState<string>("");
-  const [outputValue, setOutputValue] = useState<string>("");
+  const [inputValue, setInputValue] = useToolState("inputValue", "");
+  const [outputValue, setOutputValue] = useToolState("outputValue", "");
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isAiProcessing, setIsAiProcessing] = useState<boolean>(false);
   const [processingStep, setProcessingStep] = useState<string>("");
@@ -143,22 +142,13 @@ export default function JsonTypeConverterPage() {
   const [prompt, setPrompt] = useState<string>("");
 
   // 选择的目标语言
-  const [targetLanguage, setTargetLanguage] = useState<string>("typescript");
+  const [targetLanguage, setTargetLanguage] = useToolState(
+    "targetLanguage",
+    "typescript",
+  );
 
-  // 处理编辑器布局调整
-  const handleEditorResize = (width: number) => {
-    console.log("Editor left width:", width + "%");
-  };
-
-  // 在拖动结束后更新编辑器布局
-  const handleEditorResizeComplete = (width: number) => {
-    console.log("Editor resize complete:", width + "%");
-    // 更新两个编辑器的布局
-    setTimeout(() => {
-      inputEditorRef.current?.layout();
-      outputEditorRef.current?.layout();
-    }, 50); // 给DOM更新一点时间
-  };
+  const task = useBackgroundTask(inputValue + "\u0000" + targetLanguage);
+  const ai = useToolAI(inputValue + "\u0000" + targetLanguage);
 
   // 使用 OpenAI 配置 store
   const { syncConfig } = useOpenAIConfigStore();
@@ -191,42 +181,14 @@ export default function JsonTypeConverterPage() {
     setProcessingStep("正在处理转换...");
 
     try {
-      // 解析输入内容
-      let jsonInput = inputValue;
-
-      // 验证JSON格式是否有效
-      try {
-        parseJson(jsonInput);
-      } catch {
-        toast.error("无效的JSON格式");
-        setIsProcessing(false);
-        setProcessingStep("");
-
-        return;
-      }
-
-      // 设置quicktype选项
-      const quicktypeOptions = {
-        lang: targetLanguage,
-        inputData: jsonInput,
-        inferMaps: true,
-        inferEnums: true,
-        inferDateTimes: true,
-        alphabetizeProperties: true,
-        allPropertiesOptional: false,
-      };
-
-      setProcessingStep("生成类型定义中...");
-
-      // 调用quicktype API
-      const { lines } = await quicktypeJSON(
-        "GeneratedType", // 顶级类型名称
-        jsonInput,
-        quicktypeOptions.lang,
-      );
-
-      // 更新输出
-      const result = lines.join("\n");
+      const result =
+        (
+          await task.run({
+            action: "type",
+            content: inputValue,
+            language: targetLanguage,
+          })
+        ).content || "";
 
       setOutputValue(result);
       outputEditorRef.current?.updateValue(result);
@@ -234,6 +196,7 @@ export default function JsonTypeConverterPage() {
       toast.success("转换成功");
       setProcessingStep("转换完成");
     } catch (error) {
+      if ((error as Error).name === "AbortError") return;
       console.error("转换错误:", error);
       toast.error(`转换失败: ${(error as Error).message}`);
       setProcessingStep("");
@@ -241,33 +204,6 @@ export default function JsonTypeConverterPage() {
       setIsProcessing(false);
     }
   };
-
-  // 使用quicktype-core进行JSON到类型的转换
-  async function quicktypeJSON(
-    typeName: string,
-    jsonString: string,
-    lang: string,
-  ) {
-    const jsonInput = quicktype.jsonInputForTargetLanguage(lang);
-
-    await jsonInput.addSource({
-      name: typeName,
-      samples: [jsonString],
-    });
-
-    const inputData = new quicktype.InputData();
-
-    inputData.addInput(jsonInput);
-
-    return await quicktype.quicktype({
-      inputData,
-      lang,
-      rendererOptions: {
-        "just-types": "true", // 仅生成类型，不生成额外代码
-        "acronym-style": "original", // 保持原始大小写
-      },
-    });
-  }
 
   // 复制输出内容
   const copyOutput = () => {
@@ -277,8 +213,7 @@ export default function JsonTypeConverterPage() {
       return;
     }
 
-    navigator.clipboard
-      .writeText(outputValue)
+    writeClipboardText(outputValue)
       .then(() => toast.success("已复制到剪贴板"))
       .catch(() => toast.error("复制失败"));
   };
@@ -313,54 +248,51 @@ export default function JsonTypeConverterPage() {
       }
 
       // 使用 OpenAI 服务
-      await openAIService.createChatCompletion(
-        [{ role: "user", content: promptText }],
-        {
-          onStart: () => {
-            setProcessingStep("正在生成...");
-          },
-          onProcessing: (step) => {
-            setProcessingStep(step);
-          },
-          onChunk: (_, accumulated) => {
-            // // 清理结果，移除 markdown 格式标记
-            // const cleanedResult = accumulated
-            //   .replace(/^```[a-z]*\s*/i, "")
-            //   .replace(/```\s*$/i, "")
-            //   .trim();
-
-            outputEditorRef.current?.updateValue(accumulated);
-          },
-          onComplete: (final) => {
-            // 提取语言标记
-            const langMatch = final.match(/^```([a-z]+)\s/i);
-            let detectedLang = langMatch
-              ? langMatch[1].toLowerCase()
-              : targetLanguage;
-
-            if (!detectedLang) {
-              detectedLang = "plaintext";
-            }
-            console.log("Detected language:", detectedLang);
-            // 清理结果，移除 markdown 格式标记
-            const cleanedResult = final
-              .replace(/^```[a-z]*\s*/i, "")
-              .replace(/```\s*$/i, "")
-              .trim();
-
-            // 更新编辑器语言和内容
-            outputEditorRef.current?.setLanguage(detectedLang);
-            outputEditorRef.current?.updateValue(cleanedResult);
-            setTargetLanguage(detectedLang);
-            setOutputValue(cleanedResult);
-            toast.success("转换成功");
-            setProcessingStep("转换完成");
-          },
-          onError: () => {
-            setProcessingStep("");
-          },
+      await ai.run([{ role: "user", content: promptText }], {
+        onStart: () => {
+          setProcessingStep("正在生成...");
         },
-      );
+        onProcessing: (step) => {
+          setProcessingStep(step);
+        },
+        onChunk: (_, accumulated) => {
+          // // 清理结果，移除 markdown 格式标记
+          // const cleanedResult = accumulated
+          //   .replace(/^```[a-z]*\s*/i, "")
+          //   .replace(/```\s*$/i, "")
+          //   .trim();
+
+          outputEditorRef.current?.updateValue(accumulated);
+        },
+        onComplete: (final) => {
+          // 提取语言标记
+          const langMatch = final.match(/^```([a-z]+)\s/i);
+          let detectedLang = langMatch
+            ? langMatch[1].toLowerCase()
+            : targetLanguage;
+
+          if (!detectedLang) {
+            detectedLang = "plaintext";
+          }
+          console.log("Detected language:", detectedLang);
+          // 清理结果，移除 markdown 格式标记
+          const cleanedResult = final
+            .replace(/^```[a-z]*\s*/i, "")
+            .replace(/```\s*$/i, "")
+            .trim();
+
+          // 更新编辑器语言和内容
+          outputEditorRef.current?.setLanguage(detectedLang);
+          outputEditorRef.current?.updateValue(cleanedResult);
+          setTargetLanguage(detectedLang);
+          setOutputValue(cleanedResult);
+          toast.success("转换成功");
+          setProcessingStep("转换完成");
+        },
+        onError: () => {
+          setProcessingStep("");
+        },
+      });
     } catch (error) {
       console.error("AI转换错误:", error);
       toast.error(`转换失败: ${(error as Error).message}`);
@@ -377,239 +309,124 @@ export default function JsonTypeConverterPage() {
     setIsAiModalOpen(true);
   };
 
-  // 工具特定的操作按钮
-  const actionButtons = (
-    <div className="flex items-center gap-2 flex-wrap">
-      <Select
-        aria-label="目标语言"
-        className="w-40 min-w-[160px]"
-        color="secondary"
-        selectedKeys={[targetLanguage]}
-        size="sm"
-        startContent={
-          <Icon
-            className="mr-1 text-secondary"
-            icon={
-              TARGET_LANGUAGES.find((l) => l.value === targetLanguage)?.icon ||
-              ""
-            }
-            width={18}
-          />
-        }
-        variant="faded"
-        onChange={(e) => setTargetLanguage(e.target.value)}
-      >
-        {TARGET_LANGUAGES.map((lang) => (
-          <SelectItem
-            key={lang.value}
-            startContent={<Icon className="mr-2" icon={lang.icon} width={18} />}
-          >
-            {lang.label}
-          </SelectItem>
-        ))}
-      </Select>
-
-      <Divider className="h-6" orientation="vertical" />
-
-      <Button
-        className="font-medium"
-        color="secondary"
-        isDisabled={isProcessing || isAiProcessing}
-        size="sm"
-        startContent={
-          isAiProcessing ? (
-            <Spinner color="current" size="sm" />
-          ) : (
-            <Icon icon="solar:magic-stick-linear" width={18} />
-          )
-        }
-        variant="flat"
-        onPress={() => setIsAiModalOpen(true)}
-      >
-        AI 转换
-      </Button>
-
-      <Button
-        className="font-medium"
-        color="primary"
-        isDisabled={isProcessing || isAiProcessing || !inputValue}
-        size="sm"
-        startContent={
-          isProcessing ? (
-            <Spinner color="current" size="sm" />
-          ) : (
-            <Icon icon="solar:code-square-outline" width={18} />
-          )
-        }
-        variant="flat"
-        onPress={convertJsonToType}
-      >
-        生成类型
-      </Button>
-
-      <Button
-        className="font-medium"
-        color="success"
-        isDisabled={!outputValue}
-        size="sm"
-        startContent={<Icon icon="solar:copy-outline" width={18} />}
-        variant="flat"
-        onPress={copyOutput}
-      >
-        复制结果
-      </Button>
-
-      <Button
-        className="font-medium"
-        color="danger"
-        isDisabled={isProcessing || isAiProcessing}
-        size="sm"
-        startContent={<Icon icon="solar:restart-outline" width={18} />}
-        variant="flat"
-        onPress={handleReset}
-      >
-        重置
-      </Button>
-    </div>
-  );
-
-  // 状态指示器
-  const statusIndicator = processingStep ? (
-    <Chip
-      className="px-3 transition-all duration-200"
-      color={isProcessing ? "warning" : "success"}
-      startContent={
-        isProcessing ? (
-          <Spinner className="mx-1" color="warning" size="sm" />
-        ) : (
-          <Icon className="mx-1" icon="icon-park-outline:success" width={16} />
-        )
-      }
-      variant="flat"
-    >
-      {processingStep}
-    </Chip>
-  ) : null;
-
+  const busy = isProcessing || isAiProcessing;
   return (
     <ToolboxPageTemplate
-      actions={actionButtons}
-      statusIndicator={statusIndicator}
       toolIcon="fluent-color:code-block-24"
-      toolIconColor="text-primary"
       toolName="JSON 对象类型转换器"
+      description="从 JSON 生成类型定义，左右对照源数据与代码。"
+      actions={
+        <>
+          <Button
+            color="primary"
+            size="sm"
+            isDisabled={busy || !inputValue}
+            onPress={convertJsonToType}
+          >
+            {isProcessing ? <Spinner size="sm" /> : <Code2 />}生成类型
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            isDisabled={busy}
+            onPress={() => setIsAiModalOpen(true)}
+          >
+            {isAiProcessing ? <Spinner size="sm" /> : <WandSparkles />}AI 转换
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            isDisabled={busy}
+            onPress={handleReset}
+          >
+            <RotateCcw />
+            重置
+          </Button>
+        </>
+      }
+      statusIndicator={
+        <span role="status" aria-live="polite">
+          {processingStep || "JSON → 类型定义"}
+        </span>
+      }
     >
-      <div className="flex flex-col h-full relative">
+      <div className="tool-editor-workspace">
         <AIPromptOverlay
           isOpen={isAiModalOpen}
-          placeholderText="请输入您的需求，例如：'将这个 JSON 转换为 Go 结构体并添加 grom 字段定义，并添加中文注释'"
           prompt={prompt}
+          placeholderText="例如：生成 Go 结构体，添加 JSON 标签和中文注释"
           quickPrompts={quickPrompts}
-          tipText="提示: 您可以让AI将JSON转换为各种语言的类型定义或自定义结构"
+          tipText="支持各种语言的类型定义和自定义结构"
           onClose={() => setIsAiModalOpen(false)}
           onPromptChange={setPrompt}
           onQuickPromptClick={handleQuickPromptClick}
           onSubmit={handleAiConvert}
         />
-        {/* 可调整大小的双编辑器布局 */}
-        <div className="flex-grow h-0 overflow-hidden">
-          <ResizableEditorLayout
-            className="h-full"
-            initialLeftWidth={50}
-            maxLeftWidth={70}
-            minLeftWidth={30}
-            onResize={handleEditorResize}
-            onResizeComplete={handleEditorResizeComplete}
+        <ResizableEditorLayout
+          initialLeftWidth={50}
+          minLeftWidth={30}
+          maxLeftWidth={70}
+        >
+          <ToolPanel
+            title="输入 JSON"
+            actions={
+              <Button
+                size="sm"
+                variant="ghost"
+                onPress={() => inputEditorRef.current?.format()}
+              >
+                格式化
+              </Button>
+            }
           >
-            {/* 左侧编辑器面板 */}
-            <Card className="h-full overflow-hidden shadow-md border border-default-200 transition-shadow hover:shadow-lg m-2">
-              <CardBody className="p-0 h-full flex flex-col">
-                <div className="p-2.5 bg-default-50 border-b border-default-200 flex justify-between items-center">
-                  <span className="text-sm font-medium flex items-center gap-2">
-                    <Icon
-                      className="text-default-600"
-                      icon="solar:document-text-outline"
-                      width={16}
-                    />
-                    输入 JSON
-                  </span>
-                  <Tooltip content="格式化" placement="top">
-                    <Button
-                      isIconOnly
-                      aria-label="格式化"
-                      className="bg-default-100/50 hover:bg-default-200/60"
-                      size="sm"
-                      variant="light"
-                      onPress={() => {
-                        inputEditorRef.current?.format();
-                      }}
-                    >
-                      <Icon
-                        className="text-default-600"
-                        icon="solar:magic-stick-linear"
-                        width={18}
-                      />
-                    </Button>
-                  </Tooltip>
-                </div>
-                <div className="flex-1 w-full h-full flex-grow overflow-hidden">
-                  <MonacoEditor
-                    ref={inputEditorRef}
-                    height="100%"
-                    language="json"
-                    tabKey="input"
-                    theme={theme === "dark" ? "vs-dark" : "vs-light"}
-                    value={inputValue}
-                    onUpdateValue={(value) => setInputValue(value || "")}
-                  />
-                </div>
-              </CardBody>
-            </Card>
-
-            {/* 右侧编辑器面板 */}
-            <Card className="h-full overflow-hidden shadow-md border border-default-200 transition-shadow hover:shadow-lg m-2">
-              <CardBody className="p-0 h-full flex flex-col">
-                <div className="p-2.5 bg-default-50 border-b border-default-200 flex justify-between items-center">
-                  <span className="text-sm font-medium flex items-center gap-2">
-                    <Icon
-                      className="text-default-600"
-                      icon="solar:code-square-linear"
-                      width={16}
-                    />
-                    转换后内容
-                  </span>
-                  <Button
-                    isIconOnly
-                    aria-label="复制"
-                    className="bg-default-100/50 hover:bg-default-200/60"
-                    size="sm"
-                    variant="light"
-                    onPress={copyOutput}
-                  >
-                    <Icon
-                      className="text-default-600"
-                      icon="solar:copy-outline"
-                      width={18}
-                    />
-                  </Button>
-                </div>
-                <div className="flex-1 h-full flex-grow overflow-hidden">
-                  <MonacoEditor
-                    ref={outputEditorRef}
-                    height="100%"
-                    language={targetLanguage}
-                    tabKey="out"
-                    theme={theme === "dark" ? "vs-dark" : "vs-light"}
-                    value={outputValue}
-                    onUpdateValue={(val) => {
-                      setOutputValue(val || "");
-                    }}
-                  />
-                </div>
-              </CardBody>
-            </Card>
-          </ResizableEditorLayout>
-        </div>
+            <MonacoEditor
+              ref={inputEditorRef}
+              language="json"
+              tabKey="input"
+              theme={theme === "dark" ? "vs-dark" : "vs-light"}
+              value={inputValue}
+              onUpdateValue={(value) => setInputValue(value || "")}
+            />
+          </ToolPanel>
+          <ToolPanel
+            title="输出类型"
+            actions={
+              <>
+                <Select
+                  aria-label="目标语言"
+                  className="w-40"
+                  selectedKeys={[targetLanguage]}
+                  size="sm"
+                  onChange={(event) => setTargetLanguage(event.target.value)}
+                >
+                  {TARGET_LANGUAGES.map((language) => (
+                    <SelectItem key={language.value}>
+                      {language.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="复制结果"
+                  isDisabled={!outputValue}
+                  onPress={copyOutput}
+                >
+                  <Copy />
+                </Button>
+              </>
+            }
+          >
+            <MonacoEditor
+              ref={outputEditorRef}
+              language={targetLanguage}
+              tabKey="out"
+              theme={theme === "dark" ? "vs-dark" : "vs-light"}
+              value={outputValue}
+              onUpdateValue={(value) => setOutputValue(value || "")}
+            />
+          </ToolPanel>
+        </ResizableEditorLayout>
       </div>
     </ToolboxPageTemplate>
   );

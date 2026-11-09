@@ -13,7 +13,12 @@ const EncodingConverterPage = React.lazy(
   () => import("./encodingConverterPage"),
 );
 
+const JsonPathPage = React.lazy(() => import("./jsonFilterPage"));
+const ProtoSortPage = React.lazy(() => import("./protoSortPage"));
+
 export const toolComponentRegistry = {
+  protoSort: ProtoSortPage,
+  jsonPath: JsonPathPage,
   jsonAIRepair: JsonAIRepairPage,
   jsonTypeConverter: JsonTypeConverterPage,
   dataFormatConverter: DataFormatConverterPage,
